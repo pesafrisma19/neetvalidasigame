@@ -429,3 +429,147 @@ masterRoute.openapi(deleteMappingRoute, async (c) => {
     return c.json(createErrorResponse('Failed to delete mapping', 'DELETE_FAILED', err.message), 400);
   }
 });
+
+// ============================================
+// 5. RECYCLE BIN TRASH & RESTORE ROUTES
+// ============================================
+
+// Mappings Trash & Restore
+const getTrashMappingsRoute = createRoute({
+  method: 'get',
+  path: '/trash/mappings',
+  summary: 'List Soft-Deleted Mappings',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  responses: { 200: { description: 'Trash mappings list' } },
+});
+
+masterRoute.openapi(getTrashMappingsRoute, async (c) => {
+  const mappings = await masterService.getDeletedMappings();
+  return c.json(createSuccessResponse(mappings, 'Trash mappings fetched'), 200);
+});
+
+const postRestoreMappingRoute = createRoute({
+  method: 'post',
+  path: '/restore/mappings/{id}',
+  summary: 'Restore Soft-Deleted Mapping',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Mapping restored' } },
+});
+
+masterRoute.openapi(postRestoreMappingRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const mapping = await masterService.restoreMapping(id);
+    return c.json(createSuccessResponse(mapping, 'Mapping restored'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to restore mapping', 'RESTORE_FAILED', err.message), 400);
+  }
+});
+
+// Games Trash & Restore
+const getTrashGamesRoute = createRoute({
+  method: 'get',
+  path: '/trash/games',
+  summary: 'List Soft-Deleted Games',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  responses: { 200: { description: 'Trash games list' } },
+});
+
+masterRoute.openapi(getTrashGamesRoute, async (c) => {
+  const games = await masterService.getDeletedGames();
+  return c.json(createSuccessResponse(games, 'Trash games fetched'), 200);
+});
+
+const postRestoreGameRoute = createRoute({
+  method: 'post',
+  path: '/restore/games/{id}',
+  summary: 'Restore Soft-Deleted Game',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Game restored' } },
+});
+
+masterRoute.openapi(postRestoreGameRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const game = await masterService.restoreGame(id);
+    return c.json(createSuccessResponse(game, 'Game restored'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to restore game', 'RESTORE_FAILED', err.message), 400);
+  }
+});
+
+// Providers Trash & Restore
+const getTrashProvidersRoute = createRoute({
+  method: 'get',
+  path: '/trash/providers',
+  summary: 'List Soft-Deleted Providers',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  responses: { 200: { description: 'Trash providers list' } },
+});
+
+masterRoute.openapi(getTrashProvidersRoute, async (c) => {
+  const providers = await masterService.getDeletedProviders();
+  return c.json(createSuccessResponse(providers, 'Trash providers fetched'), 200);
+});
+
+const postRestoreProviderRoute = createRoute({
+  method: 'post',
+  path: '/restore/providers/{id}',
+  summary: 'Restore Soft-Deleted Provider',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Provider restored' } },
+});
+
+masterRoute.openapi(postRestoreProviderRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const provider = await masterService.restoreProvider(id);
+    return c.json(createSuccessResponse(provider, 'Provider restored'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to restore provider', 'RESTORE_FAILED', err.message), 400);
+  }
+});
+
+// Capabilities Trash & Restore
+const getTrashCapabilitiesRoute = createRoute({
+  method: 'get',
+  path: '/trash/capabilities',
+  summary: 'List Soft-Deleted Capabilities',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  responses: { 200: { description: 'Trash capabilities list' } },
+});
+
+masterRoute.openapi(getTrashCapabilitiesRoute, async (c) => {
+  const capabilities = await masterService.getDeletedCapabilities();
+  return c.json(createSuccessResponse(capabilities, 'Trash capabilities fetched'), 200);
+});
+
+const postRestoreCapabilityRoute = createRoute({
+  method: 'post',
+  path: '/restore/capabilities/{id}',
+  summary: 'Restore Soft-Deleted Capability',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Capability restored' } },
+});
+
+masterRoute.openapi(postRestoreCapabilityRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const capability = await masterService.restoreCapability(id);
+    return c.json(createSuccessResponse(capability, 'Capability restored'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to restore capability', 'RESTORE_FAILED', err.message), 400);
+  }
+});

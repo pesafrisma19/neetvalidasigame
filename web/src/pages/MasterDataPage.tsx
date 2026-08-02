@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
-import { Database, Search, Plus, Radio, Gamepad2, Layers, RefreshCw, X, Trash2, Edit3 } from 'lucide-react';
+import { Database, Search, Plus, Radio, Gamepad2, Layers, RefreshCw, X, Trash2, Edit3, RotateCcw, Archive } from 'lucide-react';
 
 export const MasterDataPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'games' | 'providers' | 'capabilities' | 'mappings'>('games');
+  const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
   const [data, setData] = useState<any[]>([]);
   const [gamesList, setGamesList] = useState<any[]>([]);
   const [providersList, setProvidersList] = useState<any[]>([]);
@@ -43,7 +44,7 @@ export const MasterDataPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const endpoint = `/admin/${activeTab}`;
+      const endpoint = viewMode === 'trash' ? `/admin/trash/${activeTab}` : `/admin/${activeTab}`;
       const res = await apiClient.get(endpoint);
       if (res.data && res.data.data) {
         setData(res.data.data);
@@ -76,7 +77,7 @@ export const MasterDataPage: React.FC = () => {
 
   useEffect(() => {
     fetchMasterData();
-  }, [activeTab]);
+  }, [activeTab, viewMode]);
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ type, message });
@@ -160,15 +161,28 @@ export const MasterDataPage: React.FC = () => {
   };
 
   const handleDeleteData = async (id: string, name: string) => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus "${name}"?`)) return;
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus "${name}" ke tempat sampah (Soft Delete)?`)) return;
 
     setLoading(true);
     try {
       await apiClient.delete(`/admin/${activeTab}/${id}`);
-      showToast('success', `Berhasil menghapus "${name}"`);
+      showToast('success', `Berhasil memindahkan "${name}" ke Recycle Bin`);
       fetchMasterData();
     } catch (err: any) {
       showToast('error', err.response?.data?.message || 'Gagal menghapus data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestoreData = async (id: string, name: string) => {
+    setLoading(true);
+    try {
+      await apiClient.post(`/admin/restore/${activeTab}/${id}`);
+      showToast('success', `Berhasil memulihkan "${name}" dari Recycle Bin!`);
+      fetchMasterData();
+    } catch (err: any) {
+      showToast('error', err.response?.data?.message || 'Gagal memulihkan data');
     } finally {
       setLoading(false);
     }
@@ -199,143 +213,291 @@ export const MasterDataPage: React.FC = () => {
             <Database className="w-5 h-5 text-blue-400" />
             Master Data Management
           </h2>
-          <p className="text-sm text-slate-400">Pengelolaan Katalog Game, Provider, Capability, dan Endpoint Mapping.</p>
+          <p className="text-sm text-slate-400">Kelola Katalog Games, Provider, Capabilities, dan Routing Mappings.</p>
         </div>
+
+        {/* View Mode Switcher: Active Data vs Recycle Bin */}
+        <div className="flex items-center gap-3">
+          <div className="bg-slate-900 border border-slate-800 p-1 rounded-xl flex items-center gap-1 text-xs">
+            <button
+              onClick={() => setViewMode('active')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === 'active' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Active Data</span>
+            </button>
+            <button
+              onClick={() => setViewMode('trash')}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                viewMode === 'trash' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Archive className="w-3.5 h-3.5" />
+              <span>Recycle Bin 🗑️</span>
+            </button>
+          </div>
+
+          {viewMode === 'active' && (
+            <button
+              onClick={handleOpenCreateModal}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-blue-600/20"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Record</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Primary Category Tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-2">
         <button
-          onClick={fetchMasterData}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700 transition-colors self-start md:self-auto"
+          onClick={() => setActiveTab('games')}
+          className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-2 ${
+            activeTab === 'games'
+              ? 'bg-slate-800 border-blue-500/50 text-blue-400'
+              : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Data
+          <Gamepad2 className="w-4 h-4" />
+          <span>Games Catalog</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('providers')}
+          className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-2 ${
+            activeTab === 'providers'
+              ? 'bg-slate-800 border-blue-500/50 text-blue-400'
+              : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Radio className="w-4 h-4" />
+          <span>Providers</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('capabilities')}
+          className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-2 ${
+            activeTab === 'capabilities'
+              ? 'bg-slate-800 border-blue-500/50 text-blue-400'
+              : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>Capabilities</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('mappings')}
+          className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors flex items-center gap-2 ${
+            activeTab === 'mappings'
+              ? 'bg-slate-800 border-blue-500/50 text-blue-400'
+              : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          <span>Validation Mappings</span>
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-800">
-        {[
-          { key: 'games', label: 'Games Catalog', icon: Gamepad2 },
-          { key: 'providers', label: 'Providers', icon: Radio },
-          { key: 'capabilities', label: 'Capabilities', icon: Layers },
-          { key: 'mappings', label: 'Validation Mappings', icon: Database },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-colors border-b-2 ${
-                activeTab === tab.key
-                  ? 'border-blue-500 bg-slate-900 text-white'
-                  : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Search & Actions Bar */}
-      <div className="flex items-center justify-between gap-4 bg-slate-900 p-4 rounded-xl border border-slate-800">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+      {/* Filter & Search Bar */}
+      <div className="flex items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Cari data ${activeTab}...`}
+            placeholder={`Cari di ${viewMode === 'trash' ? 'Recycle Bin' : 'Daftar Aktif'} ${activeTab}...`}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
           />
         </div>
         <button
-          onClick={handleOpenCreateModal}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-xl transition-colors"
+          onClick={fetchMasterData}
+          className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors"
+          title="Refresh Data"
         >
-          <Plus className="w-4 h-4" />
-          Tambah {activeTab}
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
-            Memuat data {activeTab}...
-          </div>
-        ) : filteredData.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-xs">
-            Tidak ada data {activeTab} ditemukan.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase tracking-wider">
+      {/* Data Table View */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-slate-950/80 border-b border-slate-800 uppercase tracking-wider text-[11px] text-slate-400">
+              <tr>
+                {activeTab === 'games' && (
+                  <>
+                    <th className="p-4">Game Code</th>
+                    <th className="p-4">Nama Game</th>
+                    <th className="p-4">User ID Regex</th>
+                    <th className="p-4">Zone ID Regex</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Aksi</th>
+                  </>
+                )}
+                {activeTab === 'providers' && (
+                  <>
+                    <th className="p-4">Provider Code</th>
+                    <th className="p-4">Nama Provider</th>
+                    <th className="p-4">Deskripsi</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Aksi</th>
+                  </>
+                )}
+                {activeTab === 'capabilities' && (
+                  <>
+                    <th className="p-4">Code</th>
+                    <th className="p-4">Nama Kapabilitas</th>
+                    <th className="p-4">Version</th>
+                    <th className="p-4 text-right">Aksi</th>
+                  </>
+                )}
+                {activeTab === 'mappings' && (
+                  <>
+                    <th className="p-4">Game</th>
+                    <th className="p-4">Capability</th>
+                    <th className="p-4">Provider</th>
+                    <th className="p-4">Adapter Key</th>
+                    <th className="p-4">Slug</th>
+                    <th className="p-4">Priority</th>
+                    <th className="p-4 text-right">Aksi</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {loading && data.length === 0 ? (
                 <tr>
-                  <th className="px-4 py-3">ID / Code</th>
-                  <th className="px-4 py-3">Nama / Key</th>
-                  <th className="px-4 py-3">Details / Status</th>
-                  <th className="px-4 py-3 text-right">Aksi</th>
+                  <td colSpan={7} className="p-12 text-center text-slate-500">
+                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
+                    <span>Memuat data master...</span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
-                {filteredData.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-850">
-                    <td className="px-4 py-3 font-mono text-slate-400">{item.code || item.id || '-'}</td>
-                    <td className="px-4 py-3 font-semibold text-white">
-                      {item.name || item.slug || item.adapterKey || '-'}
-                      {activeTab === 'mappings' && item.capability?.code && (
-                        <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]">
-                          {item.capability.code}
-                        </span>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-12 text-center text-slate-500">
+                    {viewMode === 'trash' ? '🗑️ Tidak ada data di Recycle Bin' : 'Tidak ada data ditemukan.'}
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                    {activeTab === 'games' && (
+                      <>
+                        <td className="p-4 font-mono font-semibold text-blue-400">{item.code}</td>
+                        <td className="p-4 font-medium text-white">{item.name}</td>
+                        <td className="p-4 font-mono text-slate-400">{item.userIdRegex || '-'}</td>
+                        <td className="p-4 font-mono text-slate-400">{item.zoneIdRegex || '-'}</td>
+                        <td className="p-4">
+                          {viewMode === 'trash' ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/30">
+                              Soft Deleted
+                            </span>
+                          ) : (
+                            <span className={`px-2 py-0.5 rounded text-[10px] ${item.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                              {item.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          )}
+                        </td>
+                      </>
+                    )}
+
+                    {activeTab === 'providers' && (
+                      <>
+                        <td className="p-4 font-mono font-semibold text-purple-400">{item.code}</td>
+                        <td className="p-4 font-medium text-white">{item.name}</td>
+                        <td className="p-4 text-slate-400">{item.description || '-'}</td>
+                        <td className="p-4">
+                          {viewMode === 'trash' ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/30">
+                              Soft Deleted
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400">
+                              {item.status}
+                            </span>
+                          )}
+                        </td>
+                      </>
+                    )}
+
+                    {activeTab === 'capabilities' && (
+                      <>
+                        <td className="p-4 font-mono font-semibold text-amber-400">{item.code}</td>
+                        <td className="p-4 font-medium text-white">{item.name}</td>
+                        <td className="p-4 font-mono text-slate-400">{item.version}</td>
+                      </>
+                    )}
+
+                    {activeTab === 'mappings' && (
+                      <>
+                        <td className="p-4 font-medium text-white">{item.game?.name || item.gameId}</td>
+                        <td className="p-4 font-mono text-amber-400">{item.capability?.code || item.capabilityId}</td>
+                        <td className="p-4 text-slate-300">{item.provider?.name || item.providerId}</td>
+                        <td className="p-4 font-mono text-purple-400">{item.adapterKey}</td>
+                        <td className="p-4 font-mono text-blue-400">{item.slug}</td>
+                        <td className="p-4 font-mono">{item.priority}</td>
+                      </>
+                    )}
+
+                    <td className="p-4 text-right">
+                      {viewMode === 'trash' ? (
+                        <button
+                          onClick={() => handleRestoreData(item.id, item.name || item.code || 'Record')}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1 shadow-md shadow-emerald-600/20"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Restore ↩️</span>
+                        </button>
+                      ) : (
+                        <div className="flex justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenEditModal(item)}
+                            className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteData(item.id, item.name || item.code || 'Record')}
+                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Soft Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
-                        {item.status || 'ACTIVE'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right space-x-2">
-                      <button
-                        onClick={() => handleOpenEditModal(item)}
-                        className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteData(item.id, item.name || item.code || item.slug || 'Item')}
-                        className="text-red-400 hover:text-red-300 inline-flex items-center gap-1 ml-2"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Hapus
-                      </button>
-                    </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Modal Dialog Form (Create / Edit) */}
+      {/* Create / Edit Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                {modalMode === 'create' ? `Tambah ${activeTab} Baru` : `Edit Data ${activeTab}`}
+              <h3 className="text-base font-bold text-white uppercase tracking-wider">
+                {modalMode === 'create' ? `Tambah ${activeTab} Baru` : `Edit ${activeTab}`}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveData} className="space-y-3">
+            <form onSubmit={handleSaveData} className="space-y-4">
               {activeTab === 'mappings' ? (
                 <>
                   <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Game Katalog</label>
+                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Game</label>
                     <select
                       value={formData.gameId}
                       onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
@@ -350,7 +512,7 @@ export const MasterDataPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Capability Fitur</label>
+                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Capability</label>
                     <select
                       value={formData.capabilityId}
                       onChange={(e) => setFormData({ ...formData, capabilityId: e.target.value })}
@@ -399,17 +561,17 @@ export const MasterDataPage: React.FC = () => {
                       value={formData.slug}
                       onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
                       required
-                      placeholder="e.g. MOBILE_LEGENDS atau 100000"
+                      placeholder="e.g. mobile-legends atau 100000"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Priority Fallback (1 = Prioritas Utama)</label>
+                    <label className="block text-[11px] text-slate-400 mb-1">Priority Fallback (1 = Utama)</label>
                     <input
                       type="number"
                       value={formData.priority}
-                      onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value, 10) || 1 })}
+                      onChange={(e) => setFormData({ ...formData, priority: Number(e.target.value) })}
                       required
                       min={1}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"

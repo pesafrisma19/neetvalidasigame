@@ -14,9 +14,18 @@ export class MasterDataService {
     private readonly mappingRepo: MappingRepository
   ) {}
 
-  // Games
+  // ============================================
+  // 1. GAMES CRUD & RECYCLE BIN RESTORE
+  // ============================================
   async getAllGames(): Promise<Game[]> {
     return this.gameRepo.findMany({}, { orderBy: { name: 'asc' } });
+  }
+
+  async getDeletedGames(): Promise<Game[]> {
+    return this.prisma.game.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createGame(data: Prisma.GameCreateInput): Promise<Game> {
@@ -31,9 +40,25 @@ export class MasterDataService {
     return this.gameRepo.softDelete(id);
   }
 
-  // Providers & Endpoints
+  async restoreGame(id: string): Promise<Game> {
+    return this.prisma.game.update({
+      where: { id },
+      data: { deletedAt: null, isActive: true },
+    });
+  }
+
+  // ============================================
+  // 2. PROVIDERS CRUD & RECYCLE BIN RESTORE
+  // ============================================
   async getAllProviders(): Promise<Provider[]> {
     return this.providerRepo.findMany({}, { orderBy: { name: 'asc' } });
+  }
+
+  async getDeletedProviders(): Promise<Provider[]> {
+    return this.prisma.provider.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createProvider(data: Prisma.ProviderCreateInput): Promise<Provider> {
@@ -46,6 +71,13 @@ export class MasterDataService {
 
   async deleteProvider(id: string): Promise<Provider> {
     return this.providerRepo.softDelete(id);
+  }
+
+  async restoreProvider(id: string): Promise<Provider> {
+    return this.prisma.provider.update({
+      where: { id },
+      data: { deletedAt: null, status: 'ACTIVE' },
+    });
   }
 
   async getAllEndpoints(): Promise<ProviderEndpoint[]> {
@@ -68,9 +100,18 @@ export class MasterDataService {
     });
   }
 
-  // Capabilities
+  // ============================================
+  // 3. CAPABILITIES CRUD & RECYCLE BIN RESTORE
+  // ============================================
   async getAllCapabilities(): Promise<Capability[]> {
     return this.capabilityRepo.findAllActiveCapabilities();
+  }
+
+  async getDeletedCapabilities(): Promise<Capability[]> {
+    return this.prisma.capability.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createCapability(data: Prisma.CapabilityCreateInput): Promise<Capability> {
@@ -85,9 +126,31 @@ export class MasterDataService {
     return this.capabilityRepo.softDelete(id);
   }
 
-  // Mappings
+  async restoreCapability(id: string): Promise<Capability> {
+    return this.prisma.capability.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
+
+  // ============================================
+  // 4. MAPPINGS CRUD & RECYCLE BIN RESTORE
+  // ============================================
   async getAllMappings(): Promise<GameValidationMapping[]> {
     return this.mappingRepo.findMany({}, { orderBy: { priority: 'asc' } });
+  }
+
+  async getDeletedMappings(): Promise<GameValidationMapping[]> {
+    return this.prisma.gameValidationMapping.findMany({
+      where: { deletedAt: { not: null } },
+      include: {
+        game: true,
+        capability: true,
+        provider: true,
+        endpoint: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createMapping(data: Prisma.GameValidationMappingCreateInput): Promise<GameValidationMapping> {
@@ -102,7 +165,16 @@ export class MasterDataService {
     return this.mappingRepo.softDelete(id);
   }
 
-  // Test Accounts
+  async restoreMapping(id: string): Promise<GameValidationMapping> {
+    return this.prisma.gameValidationMapping.update({
+      where: { id },
+      data: { deletedAt: null, isActive: true },
+    });
+  }
+
+  // ============================================
+  // 5. TEST ACCOUNTS
+  // ============================================
   async getTestAccountsByGame(gameId: string): Promise<TestAccount[]> {
     return this.prisma.testAccount.findMany({
       where: { gameId, isActive: true, deletedAt: null },
