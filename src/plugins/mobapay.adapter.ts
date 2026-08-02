@@ -4,24 +4,47 @@ import { logger } from '../utils/logger.js';
 export class MobapayAdapter implements BaseProviderAdapter {
   readonly adapterKey = 'MOBAPAY_ADAPTER';
 
-  private readonly DD_ITEMS: Record<string, string> = {
-    '126306': '50+50💎',
-    '126307': '150+150💎',
-    '126315': '250+250💎',
-    '126316': '500+500💎',
+  private readonly GAME_CONFIGS: Record<string, { appId: string; items: Record<string, string> }> = {
+    // Mobile Legends: Bang Bang (MLBB)
+    '100000': {
+      appId: '100000',
+      items: {
+        '126306': '50+50💎',
+        '126307': '150+150💎',
+        '126315': '250+250💎',
+        '126316': '500+500💎',
+      },
+    },
+    // Magic Chess Go Go (MCGG)
+    '124526': {
+      appId: '124526',
+      items: {
+        '127394': '50+50💎',
+        '127395': '150+150💎',
+        '127396': '250+250💎',
+        '127397': '500+500💎',
+      },
+    },
   };
 
   async execute(ctx: ValidationContext): Promise<NormalizedResult> {
     const startTime = Date.now();
-    logger.info({ adapter: this.adapterKey, gameCode: ctx.gameCode, userId: ctx.userId }, 'Executing Mobapay Validation Adapter via api/app_shop');
+    logger.info({ adapter: this.adapterKey, gameCode: ctx.gameCode, userId: ctx.userId, slug: ctx.slug }, 'Executing Mobapay Validation Adapter via api/app_shop');
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), ctx.timeoutMs);
 
+    // Resolve game config from slug (e.g. "100000" for MLBB, "124526" for MCGG)
+    const targetSlug = ctx.slug || '100000';
+    const config = this.GAME_CONFIGS[targetSlug] || {
+      appId: targetSlug,
+      items: this.GAME_CONFIGS['100000'].items,
+    };
+
     try {
       const baseUrl = 'https://api.mobapay.com/api/app_shop';
       const url = new URL(baseUrl);
-      url.searchParams.append('app_id', '100000');
+      url.searchParams.append('app_id', config.appId);
       url.searchParams.append('game_user_key', ctx.userId);
       if (ctx.zoneId) url.searchParams.append('game_server_key', ctx.zoneId);
       url.searchParams.append('country', 'ID');
@@ -62,7 +85,7 @@ export class MobapayAdapter implements BaseProviderAdapter {
       ];
 
       let firstTopupAvailable = false;
-      const firstTopupTiers = Object.entries(this.DD_ITEMS).map(([itemId, itemName]) => {
+      const firstTopupTiers = Object.entries(config.items).map(([itemId, itemName]) => {
         const good = allGoods.find((g: any) => g.id == itemId);
         const reachedLimit = good?.goods_limit?.reached_limit === true;
         const available = good ? !reachedLimit : false;
