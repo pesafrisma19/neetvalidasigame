@@ -394,8 +394,14 @@ masterRoute.openapi(updateMappingRoute, async (c) => {
 
     if (body.gameId) updatePayload.game = { connect: { id: body.gameId } };
     if (body.capabilityId) updatePayload.capability = { connect: { id: body.capabilityId } };
-    if (body.providerId) updatePayload.provider = { connect: { id: body.providerId } };
-    if (body.endpointId) updatePayload.endpoint = { connect: { id: body.endpointId } };
+    if (body.providerId) {
+      updatePayload.provider = { connect: { id: body.providerId } };
+      const endpoints = await masterService.getAllEndpoints();
+      const matchingEndpoint = endpoints.find((e) => e.providerId === body.providerId);
+      if (matchingEndpoint) {
+        updatePayload.endpoint = { connect: { id: matchingEndpoint.id } };
+      }
+    }
 
     const mapping = await masterService.updateMapping(id, updatePayload);
     return c.json(createSuccessResponse(mapping, 'Mapping updated'), 200);
