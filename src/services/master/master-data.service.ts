@@ -137,7 +137,16 @@ export class MasterDataService {
   // 4. MAPPINGS CRUD & RECYCLE BIN RESTORE
   // ============================================
   async getAllMappings(): Promise<GameValidationMapping[]> {
-    return this.mappingRepo.findMany({}, { orderBy: { priority: 'asc' } });
+    return this.prisma.gameValidationMapping.findMany({
+      where: { deletedAt: null },
+      include: {
+        game: true,
+        capability: true,
+        provider: true,
+        endpoint: true,
+      },
+      orderBy: { priority: 'asc' },
+    });
   }
 
   async getDeletedMappings(): Promise<GameValidationMapping[]> {
