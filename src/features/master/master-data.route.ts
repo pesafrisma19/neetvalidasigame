@@ -29,16 +29,16 @@ export const masterRoute = new OpenAPIHono();
 // Apply auth middleware to all admin master routes
 masterRoute.use('/*', adminAuthMiddleware);
 
-// 1. Get Games
+// ============================================
+// 1. GAMES CRUD
+// ============================================
 const getGamesRoute = createRoute({
   method: 'get',
   path: '/games',
   summary: 'List All Games',
   tags: ['Master Data'],
   security: [{ BearerAuth: [] }],
-  responses: {
-    200: { description: 'Games list' },
-  },
+  responses: { 200: { description: 'Games list' } },
 });
 
 masterRoute.openapi(getGamesRoute, async (c) => {
@@ -46,7 +46,6 @@ masterRoute.openapi(getGamesRoute, async (c) => {
   return c.json(createSuccessResponse(games, 'Games fetched'), 200);
 });
 
-// 2. Create Game
 const createGameSchema = z.object({
   code: z.string().min(2),
   name: z.string().min(2),
@@ -61,12 +60,8 @@ const postGameRoute = createRoute({
   summary: 'Create New Game',
   tags: ['Master Data'],
   security: [{ BearerAuth: [] }],
-  request: {
-    body: { content: { 'application/json': { schema: createGameSchema } } },
-  },
-  responses: {
-    201: { description: 'Game created' },
-  },
+  request: { body: { content: { 'application/json': { schema: createGameSchema } } } },
+  responses: { 201: { description: 'Game created' } },
 });
 
 masterRoute.openapi(postGameRoute, async (c) => {
@@ -79,16 +74,60 @@ masterRoute.openapi(postGameRoute, async (c) => {
   }
 });
 
-// 3. Get Providers
+const updateGameRoute = createRoute({
+  method: 'put',
+  path: '/games/{id}',
+  summary: 'Update Game',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { 'application/json': { schema: createGameSchema.partial() } } },
+  },
+  responses: { 200: { description: 'Game updated' } },
+});
+
+masterRoute.openapi(updateGameRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const game = await masterService.updateGame(id, body);
+    return c.json(createSuccessResponse(game, 'Game updated'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to update game', 'UPDATE_FAILED', err.message), 400);
+  }
+});
+
+const deleteGameRoute = createRoute({
+  method: 'delete',
+  path: '/games/{id}',
+  summary: 'Delete Game',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Game deleted' } },
+});
+
+masterRoute.openapi(deleteGameRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const game = await masterService.deleteGame(id);
+    return c.json(createSuccessResponse(game, 'Game deleted'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to delete game', 'DELETE_FAILED', err.message), 400);
+  }
+});
+
+// ============================================
+// 2. PROVIDERS CRUD
+// ============================================
 const getProvidersRoute = createRoute({
   method: 'get',
   path: '/providers',
   summary: 'List All Providers',
   tags: ['Master Data'],
   security: [{ BearerAuth: [] }],
-  responses: {
-    200: { description: 'Providers list' },
-  },
+  responses: { 200: { description: 'Providers list' } },
 });
 
 masterRoute.openapi(getProvidersRoute, async (c) => {
@@ -96,16 +135,86 @@ masterRoute.openapi(getProvidersRoute, async (c) => {
   return c.json(createSuccessResponse(providers, 'Providers fetched'), 200);
 });
 
-// 4. Get Capabilities
+const createProviderSchema = z.object({
+  code: z.string().min(2),
+  name: z.string().min(2),
+  description: z.string().optional(),
+});
+
+const postProviderRoute = createRoute({
+  method: 'post',
+  path: '/providers',
+  summary: 'Create New Provider',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: createProviderSchema } } } },
+  responses: { 201: { description: 'Provider created' } },
+});
+
+masterRoute.openapi(postProviderRoute, async (c) => {
+  try {
+    const body = c.req.valid('json');
+    const provider = await masterService.createProvider(body);
+    return c.json(createSuccessResponse(provider, 'Provider created'), 201);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to create provider', 'CREATE_FAILED', err.message), 400);
+  }
+});
+
+const updateProviderRoute = createRoute({
+  method: 'put',
+  path: '/providers/{id}',
+  summary: 'Update Provider',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { 'application/json': { schema: createProviderSchema.partial() } } },
+  },
+  responses: { 200: { description: 'Provider updated' } },
+});
+
+masterRoute.openapi(updateProviderRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const provider = await masterService.updateProvider(id, body);
+    return c.json(createSuccessResponse(provider, 'Provider updated'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to update provider', 'UPDATE_FAILED', err.message), 400);
+  }
+});
+
+const deleteProviderRoute = createRoute({
+  method: 'delete',
+  path: '/providers/{id}',
+  summary: 'Delete Provider',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Provider deleted' } },
+});
+
+masterRoute.openapi(deleteProviderRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const provider = await masterService.deleteProvider(id);
+    return c.json(createSuccessResponse(provider, 'Provider deleted'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to delete provider', 'DELETE_FAILED', err.message), 400);
+  }
+});
+
+// ============================================
+// 3. CAPABILITIES CRUD
+// ============================================
 const getCapabilitiesRoute = createRoute({
   method: 'get',
   path: '/capabilities',
   summary: 'List All Capabilities',
   tags: ['Master Data'],
   security: [{ BearerAuth: [] }],
-  responses: {
-    200: { description: 'Capabilities list' },
-  },
+  responses: { 200: { description: 'Capabilities list' } },
 });
 
 masterRoute.openapi(getCapabilitiesRoute, async (c) => {
@@ -113,19 +222,39 @@ masterRoute.openapi(getCapabilitiesRoute, async (c) => {
   return c.json(createSuccessResponse(capabilities, 'Capabilities fetched'), 200);
 });
 
-// 5. Get Mappings
+// ============================================
+// 4. MAPPINGS CRUD
+// ============================================
 const getMappingsRoute = createRoute({
   method: 'get',
   path: '/mappings',
   summary: 'List All Validation Mappings',
   tags: ['Master Data'],
   security: [{ BearerAuth: [] }],
-  responses: {
-    200: { description: 'Mappings list' },
-  },
+  responses: { 200: { description: 'Mappings list' } },
 });
 
 masterRoute.openapi(getMappingsRoute, async (c) => {
   const mappings = await masterService.getAllMappings();
   return c.json(createSuccessResponse(mappings, 'Mappings fetched'), 200);
+});
+
+const deleteMappingRoute = createRoute({
+  method: 'delete',
+  path: '/mappings/{id}',
+  summary: 'Delete Mapping',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Mapping deleted' } },
+});
+
+masterRoute.openapi(deleteMappingRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const mapping = await masterService.deleteMapping(id);
+    return c.json(createSuccessResponse(mapping, 'Mapping deleted'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to delete mapping', 'DELETE_FAILED', err.message), 400);
+  }
 });

@@ -23,9 +23,29 @@ export class MasterDataService {
     return this.gameRepo.create(data);
   }
 
-  // Providers & Endpoints (Using Transactions for Multi-table mutations)
+  async updateGame(id: string, data: Prisma.GameUpdateInput): Promise<Game> {
+    return this.gameRepo.update(id, data);
+  }
+
+  async deleteGame(id: string): Promise<Game> {
+    return this.gameRepo.softDelete(id);
+  }
+
+  // Providers & Endpoints
   async getAllProviders(): Promise<Provider[]> {
     return this.providerRepo.findMany({}, { orderBy: { name: 'asc' } });
+  }
+
+  async createProvider(data: Prisma.ProviderCreateInput): Promise<Provider> {
+    return this.providerRepo.create(data);
+  }
+
+  async updateProvider(id: string, data: Prisma.ProviderUpdateInput): Promise<Provider> {
+    return this.providerRepo.update(id, data);
+  }
+
+  async deleteProvider(id: string): Promise<Provider> {
+    return this.providerRepo.softDelete(id);
   }
 
   async getAllEndpoints(): Promise<ProviderEndpoint[]> {
@@ -53,6 +73,18 @@ export class MasterDataService {
     return this.capabilityRepo.findAllActiveCapabilities();
   }
 
+  async createCapability(data: Prisma.CapabilityCreateInput): Promise<Capability> {
+    return this.capabilityRepo.create(data);
+  }
+
+  async updateCapability(id: string, data: Prisma.CapabilityUpdateInput): Promise<Capability> {
+    return this.capabilityRepo.update(id, data);
+  }
+
+  async deleteCapability(id: string): Promise<Capability> {
+    return this.capabilityRepo.softDelete(id);
+  }
+
   // Mappings
   async getAllMappings(): Promise<GameValidationMapping[]> {
     return this.mappingRepo.findMany({}, { orderBy: { priority: 'asc' } });
@@ -60,6 +92,14 @@ export class MasterDataService {
 
   async createMapping(data: Prisma.GameValidationMappingCreateInput): Promise<GameValidationMapping> {
     return this.mappingRepo.create(data);
+  }
+
+  async updateMapping(id: string, data: Prisma.GameValidationMappingUpdateInput): Promise<GameValidationMapping> {
+    return this.mappingRepo.update(id, data);
+  }
+
+  async deleteMapping(id: string): Promise<GameValidationMapping> {
+    return this.mappingRepo.softDelete(id);
   }
 
   // Test Accounts
