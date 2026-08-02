@@ -296,6 +296,43 @@ masterRoute.openapi(postMappingRoute, async (c) => {
   }
 });
 
+const updateMappingRoute = createRoute({
+  method: 'put',
+  path: '/mappings/{id}',
+  summary: 'Update Validation Mapping',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { 'application/json': { schema: createMappingSchema.partial() } } },
+  },
+  responses: { 200: { description: 'Mapping updated' } },
+});
+
+masterRoute.openapi(updateMappingRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+
+    const updatePayload: any = {};
+    if (body.slug) updatePayload.slug = body.slug;
+    if (body.adapterKey) updatePayload.adapterKey = body.adapterKey;
+    if (body.priority) updatePayload.priority = body.priority;
+    if (body.requestParamMapping) updatePayload.requestParamMapping = body.requestParamMapping;
+    if (body.responseFieldMapping) updatePayload.responseFieldMapping = body.responseFieldMapping;
+
+    if (body.gameId) updatePayload.game = { connect: { id: body.gameId } };
+    if (body.capabilityId) updatePayload.capability = { connect: { id: body.capabilityId } };
+    if (body.providerId) updatePayload.provider = { connect: { id: body.providerId } };
+    if (body.endpointId) updatePayload.endpoint = { connect: { id: body.endpointId } };
+
+    const mapping = await masterService.updateMapping(id, updatePayload);
+    return c.json(createSuccessResponse(mapping, 'Mapping updated'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to update mapping', 'UPDATE_FAILED', err.message), 400);
+  }
+});
+
 const deleteMappingRoute = createRoute({
   method: 'delete',
   path: '/mappings/{id}',
