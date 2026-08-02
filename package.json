@@ -1,0 +1,41 @@
+{
+  "name": "neetvalidasigame",
+  "version": "1.0.0",
+  "description": "Validation Platform Backend API",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "compile": "tsc --noEmit",
+    "db:validate": "prisma validate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hono/node-server": "^1.13.8",
+    "@hono/zod-openapi": "^0.19.1",
+    "@prisma/client": "^6.4.0",
+    "@scalar/hono-api-reference": "^0.5.174",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.7",
+    "hono": "^4.7.2",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/node": "^22.13.1",
+    "@types/pino": "^7.0.4",
+    "prisma": "^6.4.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
