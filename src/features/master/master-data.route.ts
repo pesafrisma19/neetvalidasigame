@@ -239,6 +239,38 @@ masterRoute.openapi(getMappingsRoute, async (c) => {
   return c.json(createSuccessResponse(mappings, 'Mappings fetched'), 200);
 });
 
+const createMappingSchema = z.object({
+  gameId: z.string(),
+  capabilityId: z.string(),
+  providerId: z.string(),
+  endpointId: z.string().optional(),
+  slug: z.string(),
+  adapterKey: z.string(),
+  priority: z.number().default(1),
+  requestParamMapping: z.record(z.unknown()).optional(),
+  responseFieldMapping: z.record(z.unknown()).optional(),
+});
+
+const postMappingRoute = createRoute({
+  method: 'post',
+  path: '/mappings',
+  summary: 'Create New Validation Mapping',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: createMappingSchema } } } },
+  responses: { 201: { description: 'Mapping created' } },
+});
+
+masterRoute.openapi(postMappingRoute, async (c) => {
+  try {
+    const body = c.req.valid('json');
+    const mapping = await masterService.createMapping(body as any);
+    return c.json(createSuccessResponse(mapping, 'Mapping created'), 201);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to create mapping', 'CREATE_FAILED', err.message), 400);
+  }
+});
+
 const deleteMappingRoute = createRoute({
   method: 'delete',
   path: '/mappings/{id}',
