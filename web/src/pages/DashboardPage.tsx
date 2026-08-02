@@ -4,30 +4,42 @@ import { Gamepad2, Radio, Activity, CheckCircle, RefreshCw } from 'lucide-react'
 
 export const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({
-    gamesCount: 1,
-    providersCount: 3,
-    validationsCount: 24,
-    healthStatus: 'HEALTHY',
+    gamesCount: 0,
+    providersCount: 0,
+    mappingsCount: 0,
+    healthStatus: 'CHECKING',
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const gamesRes = await apiClient.get('/admin/games');
-        const providersRes = await apiClient.get('/admin/providers');
-        setStats({
-          gamesCount: gamesRes.data?.data?.length || 1,
-          providersCount: providersRes.data?.data?.length || 3,
-          validationsCount: 18,
-          healthStatus: 'HEALTHY',
-        });
-      } catch (err) {
-        // Keep default fallback metrics
-      } finally {
-        setLoading(false);
-      }
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const [gamesRes, providersRes, mappingsRes, healthRes] = await Promise.all([
+        apiClient.get('/admin/games').catch(() => null),
+        apiClient.get('/admin/providers').catch(() => null),
+        apiClient.get('/admin/mappings').catch(() => null),
+        apiClient.get('/public/health').catch(() => null),
+      ]);
+
+      setStats({
+        gamesCount: gamesRes?.data?.data?.length || 0,
+        providersCount: providersRes?.data?.data?.length || 0,
+        mappingsCount: mappingsRes?.data?.data?.length || 0,
+        healthStatus: healthRes?.data?.status === 'ok' ? 'HEALTHY' : 'Degraded',
+      });
+    } catch (err) {
+      setStats({
+        gamesCount: 0,
+        providersCount: 0,
+        mappingsCount: 0,
+        healthStatus: 'Offline',
+      });
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchStats();
   }, []);
 
@@ -38,10 +50,16 @@ export const DashboardPage: React.FC = () => {
           <h2 className="text-xl font-bold text-white">System Dashboard</h2>
           <p className="text-sm text-slate-400">Ringkasan status platform & gateway validasi.</p>
         </div>
-        {loading && <RefreshCw className="w-5 h-5 animate-spin text-blue-400" />}
+        <button
+          onClick={fetchStats}
+          className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700 transition-colors"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Refresh Stats
+        </button>
       </div>
 
-      {/* Simple Metric Cards */}
+      {/* Dynamic Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-2">
           <div className="flex items-center justify-between">
@@ -50,8 +68,8 @@ export const DashboardPage: React.FC = () => {
               <Gamepad2 className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.gamesCount}</p>
-          <span className="text-[11px] text-emerald-400">Mobile Legends & Catalogs</span>
+          <p className="text-2xl font-bold text-white">{loading ? '...' : stats.gamesCount}</p>
+          <span className="text-[11px] text-emerald-400">Live Supabase Catalog</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-2">
@@ -61,19 +79,19 @@ export const DashboardPage: React.FC = () => {
               <Radio className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.providersCount}</p>
-          <span className="text-[11px] text-slate-400">GoPay, MobaPay, Melpa</span>
+          <p className="text-2xl font-bold text-white">{loading ? '...' : stats.providersCount}</p>
+          <span className="text-[11px] text-slate-400">Registered Provider Plugins</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400">Validations Today</span>
+            <span className="text-xs text-slate-400">Validation Mappings</span>
             <div className="p-2 bg-amber-600/20 text-amber-400 rounded-xl">
               <Activity className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-white">{stats.validationsCount}</p>
-          <span className="text-[11px] text-emerald-400">+100% Success Rate</span>
+          <p className="text-2xl font-bold text-white">{loading ? '...' : stats.mappingsCount}</p>
+          <span className="text-[11px] text-emerald-400">Active Routing Rules</span>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-2">
@@ -83,8 +101,8 @@ export const DashboardPage: React.FC = () => {
               <CheckCircle className="w-5 h-5" />
             </div>
           </div>
-          <p className="text-xl font-bold text-emerald-400">{stats.healthStatus}</p>
-          <span className="text-[11px] text-slate-400">Engine Online 200 OK</span>
+          <p className="text-xl font-bold text-emerald-400">{loading ? '...' : stats.healthStatus}</p>
+          <span className="text-[11px] text-slate-400">Live API VPS Status</span>
         </div>
       </div>
     </div>

@@ -222,6 +222,77 @@ masterRoute.openapi(getCapabilitiesRoute, async (c) => {
   return c.json(createSuccessResponse(capabilities, 'Capabilities fetched'), 200);
 });
 
+const createCapabilitySchema = z.object({
+  code: z.enum(['NICKNAME', 'REGION', 'FIRST_TOPUP', 'EMAIL', 'ROLE', 'SERVER', 'CLAN', 'LEVEL']),
+  name: z.string().min(2),
+  description: z.string().optional(),
+  version: z.string().default('v1'),
+});
+
+const postCapabilityRoute = createRoute({
+  method: 'post',
+  path: '/capabilities',
+  summary: 'Create New Capability',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: createCapabilitySchema } } } },
+  responses: { 201: { description: 'Capability created' } },
+});
+
+masterRoute.openapi(postCapabilityRoute, async (c) => {
+  try {
+    const body = c.req.valid('json');
+    const capability = await masterService.createCapability(body);
+    return c.json(createSuccessResponse(capability, 'Capability created'), 201);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to create capability', 'CREATE_FAILED', err.message), 400);
+  }
+});
+
+const updateCapabilityRoute = createRoute({
+  method: 'put',
+  path: '/capabilities/{id}',
+  summary: 'Update Capability',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { 'application/json': { schema: createCapabilitySchema.partial() } } },
+  },
+  responses: { 200: { description: 'Capability updated' } },
+});
+
+masterRoute.openapi(updateCapabilityRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const capability = await masterService.updateCapability(id, body);
+    return c.json(createSuccessResponse(capability, 'Capability updated'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to update capability', 'UPDATE_FAILED', err.message), 400);
+  }
+});
+
+const deleteCapabilityRoute = createRoute({
+  method: 'delete',
+  path: '/capabilities/{id}',
+  summary: 'Delete Capability',
+  tags: ['Master Data'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'Capability deleted' } },
+});
+
+masterRoute.openapi(deleteCapabilityRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const capability = await masterService.deleteCapability(id);
+    return c.json(createSuccessResponse(capability, 'Capability deleted'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to delete capability', 'DELETE_FAILED', err.message), 400);
+  }
+});
+
 // ============================================
 // 4. MAPPINGS CRUD
 // ============================================
