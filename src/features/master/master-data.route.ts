@@ -264,7 +264,32 @@ const postMappingRoute = createRoute({
 masterRoute.openapi(postMappingRoute, async (c) => {
   try {
     const body = c.req.valid('json');
-    const mapping = await masterService.createMapping(body as any);
+
+    // Auto-resolve ProviderEndpoint ID if not provided explicitly
+    let targetEndpointId = body.endpointId;
+    if (!targetEndpointId) {
+      const endpoints = await masterService.getAllEndpoints();
+      const matchingEndpoint = endpoints.find((e) => e.providerId === body.providerId);
+      targetEndpointId = matchingEndpoint?.id;
+    }
+
+    if (!targetEndpointId) {
+      return c.json(createErrorResponse('Provider belum memiliki endpoint terdaftar', 'ENDPOINT_MISSING'), 400);
+    }
+
+    const prismaPayload = {
+      slug: body.slug,
+      adapterKey: body.adapterKey,
+      priority: body.priority || 1,
+      requestParamMapping: body.requestParamMapping || { userId: 'userId', zoneId: 'zoneId' },
+      responseFieldMapping: body.responseFieldMapping || { nickname: 'data.username', region: 'data.countryOrigin' },
+      game: { connect: { id: body.gameId } },
+      capability: { connect: { id: body.capabilityId } },
+      provider: { connect: { id: body.providerId } },
+      endpoint: { connect: { id: targetEndpointId } },
+    };
+
+    const mapping = await masterService.createMapping(prismaPayload as any);
     return c.json(createSuccessResponse(mapping, 'Mapping created'), 201);
   } catch (err: any) {
     return c.json(createErrorResponse('Failed to create mapping', 'CREATE_FAILED', err.message), 400);
