@@ -7,6 +7,9 @@ export const MasterDataPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'games' | 'providers' | 'capabilities' | 'mappings'>('games');
   const [data, setData] = useState<any[]>([]);
+  const [gamesList, setGamesList] = useState<any[]>([]);
+  const [providersList, setProvidersList] = useState<any[]>([]);
+  const [capabilitiesList, setCapabilitiesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -21,6 +24,14 @@ export const MasterDataPage: React.FC = () => {
     description: '',
     userIdRegex: '',
     zoneIdRegex: '',
+    // Mapping specific fields
+    gameId: '',
+    capabilityId: '',
+    providerId: '',
+    endpointId: '',
+    slug: '',
+    adapterKey: 'GOPAY_ADAPTER',
+    priority: 1,
   });
 
   const fetchMasterData = async () => {
@@ -39,6 +50,17 @@ export const MasterDataPage: React.FC = () => {
       } else {
         setData([]);
       }
+
+      // Pre-fetch related dropdown lists for mapping modal
+      const [gRes, pRes, cRes] = await Promise.all([
+        apiClient.get('/admin/games').catch(() => null),
+        apiClient.get('/admin/providers').catch(() => null),
+        apiClient.get('/admin/capabilities').catch(() => null),
+      ]);
+
+      if (gRes?.data?.data) setGamesList(gRes.data.data);
+      if (pRes?.data?.data) setProvidersList(pRes.data.data);
+      if (cRes?.data?.data) setCapabilitiesList(cRes.data.data);
     } catch (err: any) {
       if (err.response?.status === 401) {
         localStorage.removeItem('admin_token');
@@ -64,7 +86,20 @@ export const MasterDataPage: React.FC = () => {
   const handleOpenCreateModal = () => {
     setModalMode('create');
     setSelectedId(null);
-    setFormData({ code: '', name: '', description: '', userIdRegex: '', zoneIdRegex: '' });
+    setFormData({
+      code: '',
+      name: '',
+      description: '',
+      userIdRegex: '',
+      zoneIdRegex: '',
+      gameId: gamesList[0]?.id || '',
+      capabilityId: capabilitiesList[0]?.id || '',
+      providerId: providersList[0]?.id || '',
+      endpointId: providersList[0]?.endpoints?.[0]?.id || '',
+      slug: '',
+      adapterKey: 'GOPAY_ADAPTER',
+      priority: 1,
+    });
     setIsModalOpen(true);
   };
 
@@ -77,6 +112,13 @@ export const MasterDataPage: React.FC = () => {
       description: item.description || '',
       userIdRegex: item.userIdRegex || '',
       zoneIdRegex: item.zoneIdRegex || '',
+      gameId: item.gameId || item.game?.id || '',
+      capabilityId: item.capabilityId || item.capability?.id || '',
+      providerId: item.providerId || item.provider?.id || '',
+      endpointId: item.endpointId || item.endpoint?.id || '',
+      slug: item.slug || '',
+      adapterKey: item.adapterKey || 'GOPAY_ADAPTER',
+      priority: item.priority || 1,
     });
     setIsModalOpen(true);
   };
@@ -86,11 +128,26 @@ export const MasterDataPage: React.FC = () => {
     setLoading(true);
 
     try {
+      let payload: any = { ...formData };
+      if (activeTab === 'mappings') {
+        payload = {
+          gameId: formData.gameId,
+          capabilityId: formData.capabilityId,
+          providerId: formData.providerId,
+          endpointId: formData.endpointId || (providersList.find((p) => p.id === formData.providerId)?.endpoints?.[0]?.id),
+          slug: formData.slug,
+          adapterKey: formData.adapterKey,
+          priority: Number(formData.priority) || 1,
+          requestParamMapping: { userId: 'userId', zoneId: 'zoneId' },
+          responseFieldMapping: { nickname: 'data.username', region: 'data.countryOrigin' },
+        };
+      }
+
       if (modalMode === 'create') {
-        await apiClient.post(`/admin/${activeTab}`, formData);
+        await apiClient.post(`/admin/${activeTab}`, payload);
         showToast('success', `Berhasil menambah ${activeTab} baru!`);
       } else if (modalMode === 'edit' && selectedId) {
-        await apiClient.put(`/admin/${activeTab}/${selectedId}`, formData);
+        await apiClient.put(`/admin/${activeTab}/${selectedId}`, payload);
         showToast('success', `Berhasil memperbarui data ${activeTab}!`);
       }
       setIsModalOpen(false);
@@ -191,15 +248,13 @@ export const MasterDataPage: React.FC = () => {
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
           />
         </div>
-        {(activeTab === 'games' || activeTab === 'providers') && (
-          <button
-            onClick={handleOpenCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-xl transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Tambah {activeTab}
-          </button>
-        )}
+        <button
+          onClick={handleOpenCreateModal}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-xl transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Tambah {activeTab}
+        </button>
       </div>
 
       {/* Data Table */}
@@ -228,7 +283,14 @@ export const MasterDataPage: React.FC = () => {
                 {filteredData.map((item, idx) => (
                   <tr key={idx} className="hover:bg-slate-850">
                     <td className="px-4 py-3 font-mono text-slate-400">{item.code || item.id || '-'}</td>
-                    <td className="px-4 py-3 font-semibold text-white">{item.name || item.slug || item.adapterKey || '-'}</td>
+                    <td className="px-4 py-3 font-semibold text-white">
+                      {item.name || item.slug || item.adapterKey || '-'}
+                      {activeTab === 'mappings' && item.capability?.code && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px]">
+                          {item.capability.code}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
                         {item.status || 'ACTIVE'}
@@ -242,7 +304,7 @@ export const MasterDataPage: React.FC = () => {
                         <Edit3 className="w-3.5 h-3.5" /> Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteData(item.id, item.name || item.code || 'Item')}
+                        onClick={() => handleDeleteData(item.id, item.name || item.code || item.slug || 'Item')}
                         className="text-red-400 hover:text-red-300 inline-flex items-center gap-1 ml-2"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Hapus
@@ -270,66 +332,154 @@ export const MasterDataPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveData} className="space-y-3">
-              <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Code / Unique Identifier</label>
-                <input
-                  type="text"
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  required
-                  placeholder="e.g. mobile-legends"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Nama</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="e.g. Mobile Legends: Bang Bang"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {activeTab === 'games' && (
+              {activeTab === 'mappings' ? (
                 <>
                   <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">User ID Regex Check (Opsional)</label>
+                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Game Katalog</label>
+                    <select
+                      value={formData.gameId}
+                      onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    >
+                      {gamesList.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name} ({g.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Capability Fitur</label>
+                    <select
+                      value={formData.capabilityId}
+                      onChange={(e) => setFormData({ ...formData, capabilityId: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    >
+                      {capabilitiesList.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.code} ({c.name})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Pilih Provider Pihak Ketiga</label>
+                    <select
+                      value={formData.providerId}
+                      onChange={(e) => setFormData({ ...formData, providerId: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    >
+                      {providersList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Adapter Strategy Key</label>
+                    <select
+                      value={formData.adapterKey}
+                      onChange={(e) => setFormData({ ...formData, adapterKey: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="GOPAY_ADAPTER">GOPAY_ADAPTER (GoPay Games)</option>
+                      <option value="MOBAPAY_ADAPTER">MOBAPAY_ADAPTER (MobaPay App Shop)</option>
+                      <option value="MELPA_ADAPTER">MELPA_ADAPTER (Melpa Digital)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Provider Game Slug</label>
                     <input
                       type="text"
-                      value={formData.userIdRegex}
-                      onChange={(e) => setFormData({ ...formData, userIdRegex: e.target.value })}
-                      placeholder="e.g. ^[0-9]+$"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                      required
+                      placeholder="e.g. MOBILE_LEGENDS atau 100000"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Zone ID Regex Check (Opsional)</label>
+                    <label className="block text-[11px] text-slate-400 mb-1">Priority Fallback (1 = Prioritas Utama)</label>
                     <input
-                      type="text"
-                      value={formData.zoneIdRegex}
-                      onChange={(e) => setFormData({ ...formData, zoneIdRegex: e.target.value })}
-                      placeholder="e.g. ^[0-9]+$"
+                      type="number"
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value, 10) || 1 })}
+                      required
+                      min={1}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                     />
                   </div>
                 </>
-              )}
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Code / Unique Identifier</label>
+                    <input
+                      type="text"
+                      value={formData.code}
+                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                      required
+                      placeholder="e.g. free-fire"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
 
-              {activeTab === 'providers' && (
-                <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Deskripsi</label>
-                  <input
-                    type="text"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="e.g. GoPay Games API Provider"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-400 mb-1">Nama</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      placeholder="e.g. Free Fire"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  {activeTab === 'games' && (
+                    <>
+                      <div>
+                        <label className="block text-[11px] text-slate-400 mb-1">User ID Regex Check (Opsional)</label>
+                        <input
+                          type="text"
+                          value={formData.userIdRegex}
+                          onChange={(e) => setFormData({ ...formData, userIdRegex: e.target.value })}
+                          placeholder="e.g. ^[0-9]+$"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-slate-400 mb-1">Zone ID Regex Check (Opsional)</label>
+                        <input
+                          type="text"
+                          value={formData.zoneIdRegex}
+                          onChange={(e) => setFormData({ ...formData, zoneIdRegex: e.target.value })}
+                          placeholder="e.g. ^[0-9]+$"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {activeTab === 'providers' && (
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Deskripsi</label>
+                      <input
+                        type="text"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="e.g. GoPay Games API Provider"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="pt-2 flex justify-end gap-2">
