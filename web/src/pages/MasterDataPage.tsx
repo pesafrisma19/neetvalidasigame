@@ -552,13 +552,6 @@ export const MasterDataPage: React.FC = () => {
                               )}
                             </div>
                             <div>Adapter: <span className="text-purple-400 font-bold">{item.adapterKey}</span></div>
-                            {item.requestParamMapping && (
-                              <div className="text-[10px] text-slate-500">
-                                Params: <span className="text-blue-300">
-                                  {Object.entries(item.requestParamMapping).map(([k, v]) => `${k}=${v}`).join(', ')}
-                                </span>
-                              </div>
-                            )}
                           </div>
                         )}
                         {activeTab === 'providers' && item.description}
