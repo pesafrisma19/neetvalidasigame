@@ -9,13 +9,17 @@ const validationEngine = new ValidationEngineService(prisma);
 export const validationRoute = new OpenAPIHono();
 
 // Public Games Catalog Route (Unauthenticated for Playground UI)
+// Public Games Catalog Route (Unauthenticated for Playground UI & Client API Specs)
 const getPublicGamesRoute = createRoute({
   method: 'get',
   path: '/games',
-  summary: 'List Public Games Catalog with Input Schema',
+  summary: 'List Public Games Catalog with Input Schema (Source of Truth)',
+  description: 'Primary source of truth for clients to dynamically retrieve active games, input field schemas (1-slot vs 2-slot), placeholders, labels, and valid sample IDs.',
   tags: ['Public Validation Gateway'],
   responses: {
-    200: { description: 'Games catalog list with input schema' },
+    200: {
+      description: 'Active games catalog list with dynamic input schemas.',
+    },
   },
 });
 
@@ -28,26 +32,27 @@ validationRoute.openapi(getPublicGamesRoute, async (c) => {
 });
 
 const ValidateRequestSchema = z.object({
-  gameCode: z.string().min(2).openapi({ example: 'mobile-legends' }),
-  userId: z.string().min(1).openapi({ example: '12345678' }),
-  zoneId: z.string().optional().openapi({ example: '2001' }),
+  gameCode: z.string().min(2).openapi({ description: 'Unique game identifier code (from GET /public/games)', example: 'example-single-slot' }),
+  userId: z.string().min(1).openapi({ description: 'Player User ID / Role ID / Account ID', example: '12345678' }),
+  zoneId: z.string().optional().openapi({ description: 'Server ID / Zone ID (required only if game uses 2-slot format)', example: '1234' }),
 });
 
 const ValidateResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
+  success: z.boolean().openapi({ example: true }),
+  message: z.string().openapi({ example: 'Account capability check completed' }),
   data: z.object({
-    gameCode: z.string(),
-    userId: z.string(),
-    zoneId: z.string().optional(),
+    gameCode: z.string().openapi({ example: 'example-single-slot' }),
+    userId: z.string().openapi({ example: '12345678' }),
+    zoneId: z.string().optional().openapi({ example: '1234' }),
     capabilities: z.object({
-      nickname: z.string().optional(),
-      region: z.string().optional(),
+      nickname: z.string().optional().openapi({ example: 'ExamplePlayer' }),
+      region: z.string().optional().openapi({ example: 'ID' }),
       firstTopupAvailable: z.boolean().optional(),
     }),
   }).nullable(),
   meta: z.object({
-    responseTimeMs: z.number(),
+    responseTimeMs: z.number().openapi({ example: 1200 }),
+    providersUsed: z.array(z.string()).optional().openapi({ example: ['GOPAY_ADAPTER'] }),
   }).nullable(),
   error: z.object({
     code: z.string(),
@@ -59,13 +64,32 @@ const postValidateAccountRoute = createRoute({
   method: 'post',
   path: '/validate-account',
   summary: 'Validate Game Account Capabilities',
-  description: 'Public API gateway to validate player Nickname, Region, and First Topup eligibility across games.',
+  description: 'Public API gateway to validate player Nickname, Region, and Account capabilities across games. Before calling this endpoint, clients SHOULD retrieve the available games and their input schema from GET /api/v1/public/games. The request structure (single-slot vs dual-slot) is determined dynamically by the game catalog.',
   tags: ['Public Validation Gateway'],
   request: {
     body: {
       content: {
         'application/json': {
           schema: ValidateRequestSchema,
+          examples: {
+            'single-slot-pattern': {
+              summary: '1-Slot Pattern (User ID Only)',
+              description: 'Example pattern for games requiring only a User ID / Account ID (e.g. Free Fire, Blood Strike, HOK, Super Sus, PUBGM).',
+              value: {
+                gameCode: 'example-single-slot',
+                userId: '12345678',
+              },
+            },
+            'dual-slot-pattern': {
+              summary: '2-Slot Pattern (User ID + Zone ID)',
+              description: 'Example pattern for games requiring both User ID and Server/Zone ID (e.g. Mobile Legends, Eggy Party, Genshin Impact, Honkai Star Rail).',
+              value: {
+                gameCode: 'example-dual-slot',
+                userId: '12345678',
+                zoneId: '1234',
+              },
+            },
+          },
         },
       },
     },
@@ -83,10 +107,10 @@ const postValidateAccountRoute = createRoute({
       description: 'Invalid input parameters or regex check failed.',
     },
     404: {
-      description: 'Game not found.',
+      description: 'Game not found in active catalog.',
     },
     502: {
-      description: 'Validation failed on all endpoints.',
+      description: 'Validation failed across all providers.',
     },
   },
 });
