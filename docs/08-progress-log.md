@@ -19,13 +19,16 @@ Dokumen ini mencatat riwayat kemajuan implementasi (*progress log*) serta daftar
   - Menambahkan background worker `src/jobs/circuit-breaker-recovery.job.ts` dengan PM2 Cluster Guard (`instanceId === '0'`).
   - Implementasi *Atomic Single-Probe Claim* saat endpoint berstatus `HALF_OPEN` untuk mencegah race condition / concurrent bombardment.
   - Penanganan sukses (reset ke `CLOSED`) dan penanganan gagal (re-trip langsung ke `OPEN` dengan 5 menit cooldown).
+- **[DONE] Client API Key Rate Limiting (In-Memory Sliding Window)** (Commit `3e62f01`)
+  - Menambahkan `rate-limit.middleware.ts` berbasis In-Memory Sliding Window 60 detik.
+  - Membaca kolom `rateLimit` (req/menit) dari `apiKeyRecord` dengan penanganan `?? 100` untuk menghormati `rateLimit = 0`.
+  - Mengembalikan response `HTTP 429 Too Many Requests` dengan header `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, dan `Retry-After`.
+  - Dilengkapi mekanisme self-pruning background interval 10 menit untuk kebersihan RAM.
 
 ---
 
 ### ⏳ TUGAS MENDATANG (TODO):
 - **[TODO] Reset Password Database Supabase**  
   *(Manual Task User)*: Mengganti password database di Supabase Dashboard karena password lama pernah ter-commit di file `.env.production.example` versi lama.
-- **[TODO] Client API Key Rate Limiting**  
-  Implementasi pembatasan request per menit berdasarkan kolom `rateLimit` di tabel `api_keys`.
 - **[TODO] Admin UI API Key Management**  
   Membuat halaman Admin Panel (`/admin/api-keys`) untuk me-release, menampilkan 1x raw key, dan mencabut (*revoke*) API Key partner Web Topup.
