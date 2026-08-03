@@ -1,5 +1,5 @@
 import type { PrismaClient, ValidationStatus } from '@prisma/client';
-import type { BaseProviderAdapter, ValidationContext } from '../../plugins/base.adapter.js';
+import type { BaseProviderAdapter, ValidationContext, NormalizedResult } from '../../plugins/base.adapter.js';
 import { GopayAdapter } from '../../plugins/gopay.adapter.js';
 import { MelpaAdapter } from '../../plugins/melpa.adapter.js';
 import { MobapayAdapter } from '../../plugins/mobapay.adapter.js';
@@ -95,13 +95,17 @@ export class ValidationEngineService {
 
     const mergedCapabilities: Record<string, unknown> = {};
     const providersUsedSet = new Set<string>();
-    let overallSuccess = false;
 
-    // 3. Process Each Capability Independently (Capability Merging Engine)
-    for (const [capabilityCode, candidateMappings] of mappingsByCapability.entries()) {
+    // Prepare entries array to guarantee deterministic response capability ordering
+    const capabilityEntries = Array.from(mappingsByCapability.entries());
+
+    // 3. Process Each Capability Independently In Parallel (Promise.allSettled)
+    const capabilityPromises = capabilityEntries.map(async ([capabilityCode, candidateMappings]) => {
       let capabilityResolved = false;
+      let resolvedResult: NormalizedResult | null = null;
+      let resolvedProviderName: string | null = null;
 
-      // Priority Fallback Loop for this capability
+      // Priority Fallback Loop for candidate mappings within this capability
       for (const mapping of candidateMappings) {
         const endpoint = mapping.endpoint;
         const provider = mapping.provider;
@@ -122,6 +126,9 @@ export class ValidationEngineService {
           continue;
         }
 
+        // Hard Max Timeout Enforcement (Max 2000ms / 2s per provider call)
+        const effectiveTimeout = Math.min(endpoint.timeoutMs || 2000, 2000);
+
         const ctx: ValidationContext = {
           gameCode: game.code,
           userId: req.userId,
@@ -130,31 +137,29 @@ export class ValidationEngineService {
           baseUrl: endpoint.baseUrl,
           requestParamMapping: (mapping.requestParamMapping as Record<string, string>) || {},
           responseFieldMapping: (mapping.responseFieldMapping as Record<string, string>) || {},
-          timeoutMs: endpoint.timeoutMs || 3000,
+          timeoutMs: effectiveTimeout,
         };
 
+        let timeoutTimer: NodeJS.Timeout | null = null;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutTimer = setTimeout(() => {
+            reject(new Error(`Provider call timed out after ${effectiveTimeout}ms`));
+          }, effectiveTimeout);
+        });
+
         try {
-          const result = await adapter.execute(ctx);
+          // Promise.race between adapter execution and hard 2s timeout
+          const result = await Promise.race([adapter.execute(ctx), timeoutPromise]);
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+
           const durationMs = Date.now() - startTime;
 
-          // Merge result based on capability code
-          if (capabilityCode === 'NICKNAME' && result.nickname) {
-            mergedCapabilities.nickname = result.nickname;
-          } else if (capabilityCode === 'REGION' && result.region) {
-            mergedCapabilities.region = result.region;
-          } else if (capabilityCode === 'FIRST_TOPUP' && result.firstTopupAvailable !== undefined) {
-            mergedCapabilities.firstTopupAvailable = result.firstTopupAvailable;
-            if (result.rawResponse && (result.rawResponse as any).firstTopupTiers) {
-              mergedCapabilities.firstTopupTiers = (result.rawResponse as any).firstTopupTiers;
-            }
-          }
-
-          providersUsedSet.add(provider.name);
           capabilityResolved = true;
-          overallSuccess = true;
+          resolvedResult = result;
+          resolvedProviderName = provider.name;
 
-          // Async Log Success
-          await this.logValidation({
+          // Non-blocking fire-and-forget success logging
+          this.logValidation({
             gameId: game.id,
             providerId: provider.id,
             endpointId: endpoint.id,
@@ -166,16 +171,18 @@ export class ValidationEngineService {
             rawResponse: result.rawResponse,
             normalizedResponse: result,
             clientIp: req.clientIp,
-          });
+          }).catch((err) => logger.error({ err }, 'Failed async success validation logging'));
 
           // Break fallback loop for this capability on success
           break;
         } catch (err: any) {
+          if (timeoutTimer) clearTimeout(timeoutTimer);
+
           const durationMs = Date.now() - startTime;
           logger.error({ capability: capabilityCode, provider: provider.name, error: err.message }, 'Capability provider failed, attempting fallback');
 
-          // Async Log Fallback / Failure
-          await this.logValidation({
+          // Non-blocking fire-and-forget fallback logging
+          this.logValidation({
             gameId: game.id,
             providerId: provider.id,
             endpointId: endpoint.id,
@@ -188,25 +195,61 @@ export class ValidationEngineService {
             normalizedResponse: {},
             errorMessage: err.message,
             clientIp: req.clientIp,
-          });
+          }).catch((logErr) => logger.error({ logErr }, 'Failed async fallback validation logging'));
 
-          // Circuit Breaker counter increment
+          // Circuit Breaker counter increment (Non-blocking async DB update)
           const newErrors = endpoint.consecutiveErrors + 1;
           const shouldOpen = newErrors >= 5;
 
-          await this.prisma.providerEndpoint.update({
-            where: { id: endpoint.id },
-            data: {
-              consecutiveErrors: newErrors,
-              circuitState: shouldOpen ? 'OPEN' : endpoint.circuitState,
-              circuitOpenUntil: shouldOpen ? new Date(Date.now() + 5 * 60 * 1000) : endpoint.circuitOpenUntil,
-            },
-          });
+          this.prisma.providerEndpoint
+            .update({
+              where: { id: endpoint.id },
+              data: {
+                consecutiveErrors: newErrors,
+                circuitState: shouldOpen ? 'OPEN' : endpoint.circuitState,
+                circuitOpenUntil: shouldOpen ? new Date(Date.now() + 5 * 60 * 1000) : endpoint.circuitOpenUntil,
+              },
+            })
+            .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker update'));
         }
       }
 
       if (!capabilityResolved) {
         logger.warn({ capabilityCode }, 'Failed to resolve capability from any mapped provider');
+      }
+
+      return {
+        capabilityCode,
+        resolved: capabilityResolved,
+        result: resolvedResult,
+        providerName: resolvedProviderName,
+      };
+    });
+
+    // Wait for all independent capabilities to complete in parallel
+    const settledResults = await Promise.allSettled(capabilityPromises);
+    let overallSuccess = false;
+
+    // Merge results preserving initial capability ordering
+    for (const item of settledResults) {
+      if (item.status === 'fulfilled' && item.value.resolved && item.value.result) {
+        const { capabilityCode, result, providerName } = item.value;
+        overallSuccess = true;
+
+        if (providerName) {
+          providersUsedSet.add(providerName);
+        }
+
+        if (capabilityCode === 'NICKNAME' && result.nickname) {
+          mergedCapabilities.nickname = result.nickname;
+        } else if (capabilityCode === 'REGION' && result.region) {
+          mergedCapabilities.region = result.region;
+        } else if (capabilityCode === 'FIRST_TOPUP' && result.firstTopupAvailable !== undefined) {
+          mergedCapabilities.firstTopupAvailable = result.firstTopupAvailable;
+          if (result.rawResponse && (result.rawResponse as any).firstTopupTiers) {
+            mergedCapabilities.firstTopupTiers = (result.rawResponse as any).firstTopupTiers;
+          }
+        }
       }
     }
 
