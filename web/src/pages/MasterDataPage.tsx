@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
-import { Database, Search, Plus, Radio, Gamepad2, Layers, RefreshCw, X, Trash2, Edit3, RotateCcw, Archive, ListPlus } from 'lucide-react';
+import { Database, Search, Plus, Radio, Gamepad2, Layers, RefreshCw, X, Trash2, Edit3, RotateCcw, Archive, ListPlus, Sparkles } from 'lucide-react';
 
 export interface BuilderFieldOption {
   label: string;
@@ -44,11 +44,13 @@ export const MasterDataPage: React.FC = () => {
   // Slot 1: User ID (Always Active)
   const [slot1Label, setSlot1Label] = useState('User ID');
   const [slot1Placeholder, setSlot1Placeholder] = useState('Masukkan User ID...');
+  const [slot1SampleValue, setSlot1SampleValue] = useState('');
 
   // Slot 2: Server / Zone ID (Optional: 'none' | 'text' | 'select')
   const [slot2Mode, setSlot2Mode] = useState<'none' | 'text' | 'select'>('none');
   const [slot2Label, setSlot2Label] = useState('Zone ID');
   const [slot2Placeholder, setSlot2Placeholder] = useState('Masukkan Zone ID...');
+  const [slot2SampleValue, setSlot2SampleValue] = useState('');
   const [slot2Options, setSlot2Options] = useState<BuilderFieldOption[]>([
     { label: 'Asia (SEA)', value: 'sea' },
     { label: 'America (LATAM)', value: 'latam' },
@@ -122,9 +124,11 @@ export const MasterDataPage: React.FC = () => {
     });
     setSlot1Label('User ID');
     setSlot1Placeholder('Masukkan User ID...');
+    setSlot1SampleValue('');
     setSlot2Mode('none');
     setSlot2Label('Zone ID');
     setSlot2Placeholder('Masukkan Zone ID...');
+    setSlot2SampleValue('');
     setSlot2Options([
       { label: 'Asia (SEA)', value: 'sea' },
       { label: 'America (LATAM)', value: 'latam' },
@@ -157,13 +161,16 @@ export const MasterDataPage: React.FC = () => {
       if (userField) {
         setSlot1Label(userField.label || 'User ID');
         setSlot1Placeholder(userField.placeholder || 'Masukkan User ID...');
+        setSlot1SampleValue(userField.sampleValue || '');
       } else {
         setSlot1Label('User ID');
         setSlot1Placeholder('Masukkan User ID...');
+        setSlot1SampleValue('');
       }
 
       const zoneField = fields.find((f: any) => f.key === 'zoneId');
       if (zoneField) {
+        setSlot2SampleValue(zoneField.sampleValue || '');
         if (zoneField.type === 'select') {
           setSlot2Mode('select');
           setSlot2Label(zoneField.label || 'Pilih Server');
@@ -178,11 +185,14 @@ export const MasterDataPage: React.FC = () => {
         setSlot2Mode('none');
         setSlot2Label('Zone ID');
         setSlot2Placeholder('Masukkan Zone ID...');
+        setSlot2SampleValue('');
       }
     } else {
       setSlot1Label('User ID');
       setSlot1Placeholder('Masukkan User ID...');
+      setSlot1SampleValue('');
       setSlot2Mode('none');
+      setSlot2SampleValue('');
     }
     setIsModalOpen(true);
   };
@@ -222,6 +232,7 @@ export const MasterDataPage: React.FC = () => {
             type: 'text',
             required: true,
             placeholder: slot1Placeholder || 'Masukkan User ID...',
+            sampleValue: slot1SampleValue.trim() || undefined,
           },
         ];
 
@@ -232,6 +243,7 @@ export const MasterDataPage: React.FC = () => {
             type: 'text',
             required: true,
             placeholder: slot2Placeholder || 'Masukkan Zone ID...',
+            sampleValue: slot2SampleValue.trim() || undefined,
           });
         } else if (slot2Mode === 'select') {
           fields.push({
@@ -241,6 +253,7 @@ export const MasterDataPage: React.FC = () => {
             required: true,
             placeholder: slot2Placeholder || 'Pilih Server...',
             options: slot2Options,
+            sampleValue: slot2SampleValue.trim() || (slot2Options[0]?.value || undefined),
           });
         }
 
@@ -468,63 +481,76 @@ export const MasterDataPage: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-bold text-slate-100 font-sans">
-                        {item.name || item.game?.name || 'Unnamed Record'}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono">{item.id}</div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-blue-400">
-                      {item.code || item.slug || item.adapterKey || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400">
-                      {activeTab === 'games' && (
-                        <div>
-                          <span>Fields: {item.inputFields?.fields?.length || 0} fields</span>
-                          {item.userIdRegex && <span className="ml-2 text-[10px] bg-slate-800 px-2 py-0.5 rounded text-amber-300 font-mono">Regex: Yes</span>}
+                filteredData.map((item) => {
+                  const sampleUser = item.inputFields?.fields?.find((f: any) => f.key === 'userId')?.sampleValue;
+                  const sampleZone = item.inputFields?.fields?.find((f: any) => f.key === 'zoneId')?.sampleValue;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-100 font-sans">
+                          {item.name || item.game?.name || 'Unnamed Record'}
                         </div>
-                      )}
-                      {activeTab === 'mappings' && (
-                        <div className="text-[11px] space-y-0.5">
-                          <div>Game: <span className="text-slate-200">{item.game?.name || item.gameId}</span></div>
-                          <div>Adapter: <span className="text-purple-400">{item.adapterKey}</span></div>
+                        <div className="text-[10px] text-slate-500 font-mono flex flex-wrap items-center gap-2">
+                          <span>{item.id}</span>
+                          {activeTab === 'games' && sampleUser && (
+                            <span className="text-[10px] text-blue-400 bg-blue-950/60 border border-blue-800/60 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-amber-400" />
+                              <span>Sample: {sampleUser}{sampleZone ? ` (${sampleZone})` : ''}</span>
+                            </span>
+                          )}
                         </div>
-                      )}
-                      {activeTab === 'providers' && item.description}
-                      {activeTab === 'capabilities' && item.description}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {viewMode === 'trash' ? (
-                        <button
-                          onClick={() => handleRestoreData(item.id, item.name || item.code || 'Record')}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1 shadow-md shadow-emerald-600/20"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          <span>Restore ↩️</span>
-                        </button>
-                      ) : (
-                        <div className="flex justify-end gap-1">
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-blue-400">
+                        {item.code || item.slug || item.adapterKey || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">
+                        {activeTab === 'games' && (
+                          <div>
+                            <span>Fields: {item.inputFields?.fields?.length || 0} fields</span>
+                            {item.userIdRegex && <span className="ml-2 text-[10px] bg-slate-800 px-2 py-0.5 rounded text-amber-300 font-mono">Regex: Yes</span>}
+                          </div>
+                        )}
+                        {activeTab === 'mappings' && (
+                          <div className="text-[11px] space-y-0.5">
+                            <div>Game: <span className="text-slate-200">{item.game?.name || item.gameId}</span></div>
+                            <div>Adapter: <span className="text-purple-400">{item.adapterKey}</span></div>
+                          </div>
+                        )}
+                        {activeTab === 'providers' && item.description}
+                        {activeTab === 'capabilities' && item.description}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {viewMode === 'trash' ? (
                           <button
-                            onClick={() => handleOpenEditModal(item)}
-                            className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Edit"
+                            onClick={() => handleRestoreData(item.id, item.name || item.code || 'Record')}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors inline-flex items-center gap-1 shadow-md shadow-emerald-600/20"
                           >
-                            <Edit3 className="w-4 h-4" />
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Restore ↩️</span>
                           </button>
-                          <button
-                            onClick={() => handleDeleteData(item.id, item.name || item.code || 'Record')}
-                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
-                            title="Soft Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                        ) : (
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteData(item.id, item.name || item.code || 'Record')}
+                              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
+                              title="Soft Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -704,7 +730,7 @@ export const MasterDataPage: React.FC = () => {
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                             <div>
                               <label className="block text-[10px] text-slate-400 mb-1">Label Tampilan *</label>
                               <input
@@ -725,6 +751,19 @@ export const MasterDataPage: React.FC = () => {
                                 required
                                 placeholder="e.g. Masukkan User ID..."
                                 className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-amber-400 font-semibold mb-1 flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-amber-400" />
+                                <span>Sample User ID (Opsional)</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={slot1SampleValue}
+                                onChange={(e) => setSlot1SampleValue(e.target.value)}
+                                placeholder="e.g. 864789196"
+                                className="w-full bg-slate-900 border border-amber-800/60 rounded-lg px-2.5 py-1.5 text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-500"
                               />
                             </div>
                           </div>
@@ -778,7 +817,7 @@ export const MasterDataPage: React.FC = () => {
 
                           {(slot2Mode === 'text' || slot2Mode === 'select') && (
                             <div className="space-y-3">
-                              <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                                 <div>
                                   <label className="block text-[10px] text-slate-400 mb-1">Label Tampilan *</label>
                                   <input
@@ -800,6 +839,37 @@ export const MasterDataPage: React.FC = () => {
                                     placeholder={slot2Mode === 'select' ? 'e.g. Pilih Server...' : 'e.g. Masukkan Zone ID...'}
                                     className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-amber-500"
                                   />
+                                </div>
+
+                                {/* SAMPLE ZONE ID FIELD: TEXT VS SELECT PICKER */}
+                                <div>
+                                  <label className="block text-[10px] text-amber-400 font-semibold mb-1 flex items-center gap-1">
+                                    <Sparkles className="w-3 h-3 text-amber-400" />
+                                    <span>Sample Server (Opsional)</span>
+                                  </label>
+
+                                  {slot2Mode === 'select' ? (
+                                    <select
+                                      value={slot2SampleValue}
+                                      onChange={(e) => setSlot2SampleValue(e.target.value)}
+                                      className="w-full bg-slate-900 border border-amber-800/60 rounded-lg px-2.5 py-1.5 text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-500 font-medium"
+                                    >
+                                      <option value="">-- Pilih Sampel Server --</option>
+                                      {slot2Options.map((opt, idx) => (
+                                        <option key={idx} value={opt.value}>
+                                          {opt.label} ({opt.value})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={slot2SampleValue}
+                                      onChange={(e) => setSlot2SampleValue(e.target.value)}
+                                      placeholder="e.g. 16806"
+                                      className="w-full bg-slate-900 border border-amber-800/60 rounded-lg px-2.5 py-1.5 text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-500"
+                                    />
+                                  )}
                                 </div>
                               </div>
 
