@@ -718,67 +718,6 @@ export const MasterDataPage: React.FC = () => {
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                     />
                   </div>
-
-                  {/* DYNAMIC SECTION 1: REQUEST PARAMETER MAPPING */}
-                  <div className="pt-3 border-t border-slate-800 space-y-2">
-                    <label className="text-xs font-bold text-blue-400 uppercase tracking-wider block">
-                      Request Parameter Mapping (Key Outgoing Query/Body)
-                    </label>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">User ID Param Key *</label>
-                        <input
-                          type="text"
-                          value={userIdParamKey}
-                          onChange={(e) => setUserIdParamKey(e.target.value)}
-                          required
-                          placeholder="e.g. id (Melpa) / userId (GoPay)"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">Zone ID Param Key *</label>
-                        <input
-                          type="text"
-                          value={zoneIdParamKey}
-                          onChange={(e) => setZoneIdParamKey(e.target.value)}
-                          required
-                          placeholder="e.g. zone (Melpa) / zoneId (GoPay)"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* DYNAMIC SECTION 2: RESPONSE FIELD MAPPING */}
-                  <div className="pt-3 border-t border-slate-800 space-y-2">
-                    <label className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
-                      Response Field Mapping (JSON Path Extraction)
-                    </label>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">Nickname Path *</label>
-                        <input
-                          type="text"
-                          value={nicknameResponsePath}
-                          onChange={(e) => setNicknameResponsePath(e.target.value)}
-                          required
-                          placeholder="e.g. data.username / data.name"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-slate-400 mb-1">Region Path (Opsional)</label>
-                        <input
-                          type="text"
-                          value={regionResponsePath}
-                          onChange={(e) => setRegionResponsePath(e.target.value)}
-                          placeholder="e.g. data.countryOrigin / data.region"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
-                        />
-                      </div>
-                    </div>
-                  </div>
                 </>
               ) : (
                 <>
