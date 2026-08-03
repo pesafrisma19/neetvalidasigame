@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LayoutDashboard, PlayCircle, Database, LogOut, User, Menu, X } from 'lucide-react';
+import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, LogOut, User, Menu, X } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -49,6 +49,12 @@ export const Navbar: React.FC = () => {
             <Database className="w-4 h-4" />
             Master Data
           </Link>
+          {token && (
+            <Link to="/api-keys" className={navItemClass('/api-keys')}>
+              <Key className="w-4 h-4" />
+              API Keys
+            </Link>
+          )}
 
           {token ? (
             <button
@@ -106,6 +112,16 @@ export const Navbar: React.FC = () => {
             <Database className="w-4 h-4" />
             Master Data
           </Link>
+          {token && (
+            <Link
+              to="/api-keys"
+              onClick={() => setMobileMenuOpen(false)}
+              className={navItemClass('/api-keys')}
+            >
+              <Key className="w-4 h-4" />
+              API Keys
+            </Link>
+          )}
 
           <div className="pt-2 border-t border-slate-800">
             {token ? (

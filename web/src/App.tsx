@@ -5,6 +5,7 @@ import { PlaygroundPage } from './pages/PlaygroundPage';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MasterDataPage } from './pages/MasterDataPage';
+import { ApiKeyPage } from './pages/ApiKeyPage';
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ export function App() {
             <Route path="login" element={<LoginPage />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="master-data" element={<MasterDataPage />} />
+            <Route path="api-keys" element={<ApiKeyPage />} />
           </Route>
         </Routes>
       </Router>

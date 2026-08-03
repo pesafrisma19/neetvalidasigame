@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { randomBytes, createHash } from 'node:crypto';
 import { prisma } from '../../lib/prisma.js';
 import { GameRepository } from '../../repositories/game/game.repository.js';
 import { ProviderRepository, ProviderEndpointRepository } from '../../repositories/provider/provider.repository.js';
@@ -593,5 +594,211 @@ masterRoute.openapi(postRestoreCapabilityRoute, async (c) => {
     return c.json(createSuccessResponse(capability, 'Capability restored'), 200);
   } catch (err: any) {
     return c.json(createErrorResponse('Failed to restore capability', 'RESTORE_FAILED', err.message), 400);
+  }
+});
+
+// ------------------------------------------------------
+// API KEY MANAGEMENT ENDPOINTS
+// ------------------------------------------------------
+
+const CreateApiKeySchema = z.object({
+  clientName: z.string().min(2, 'Client name must be at least 2 characters'),
+  rateLimit: z.number().int().min(0).default(100),
+});
+
+const UpdateApiKeySchema = z.object({
+  clientName: z.string().min(2).optional(),
+  rateLimit: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+
+// GET /api/v1/admin/api-keys (List Active API Keys)
+const getApiKeysRoute = createRoute({
+  method: 'get',
+  path: '/api-keys',
+  summary: 'List Active API Keys',
+  tags: ['Admin API Keys'],
+  security: [{ BearerAuth: [] }],
+  responses: { 200: { description: 'Active API Keys list' } },
+});
+
+masterRoute.openapi(getApiKeysRoute, async (c) => {
+  const keys = await prisma.apiKey.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      clientName: true,
+      keyPrefix: true,
+      rateLimit: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return c.json(createSuccessResponse(keys, 'API Keys fetched'), 200);
+});
+
+// POST /api/v1/admin/api-keys (Generate New API Key - RETURNS rawKey ONCE ONLY)
+const postCreateApiKeyRoute = createRoute({
+  method: 'post',
+  path: '/api-keys',
+  summary: 'Generate New API Key',
+  tags: ['Admin API Keys'],
+  security: [{ BearerAuth: [] }],
+  request: { body: { content: { 'application/json': { schema: CreateApiKeySchema } } } },
+  responses: { 201: { description: 'API Key generated successfully' } },
+});
+
+masterRoute.openapi(postCreateApiKeyRoute, async (c) => {
+  try {
+    const body = c.req.valid('json');
+    const rawKey = `nv_live_${randomBytes(16).toString('hex')}`;
+    const keyPrefix = rawKey.substring(0, 14);
+    const keyHash = createHash('sha256').update(rawKey).digest('hex');
+
+    const apiKeyRecord = await prisma.apiKey.create({
+      data: {
+        clientName: body.clientName,
+        keyPrefix,
+        keyHash,
+        rateLimit: body.rateLimit ?? 100,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        clientName: true,
+        keyPrefix: true,
+        rateLimit: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    return c.json(
+      createSuccessResponse(
+        { ...apiKeyRecord, rawKey },
+        'API Key generated successfully. Save this rawKey now! It will NOT be shown again.'
+      ),
+      201
+    );
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to generate API Key', 'CREATE_FAILED', err.message), 400);
+  }
+});
+
+// PUT /api/v1/admin/api-keys/{id} (Update API Key Metadata)
+const putUpdateApiKeyRoute = createRoute({
+  method: 'put',
+  path: '/api-keys/{id}',
+  summary: 'Update API Key Metadata',
+  tags: ['Admin API Keys'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: { content: { 'application/json': { schema: UpdateApiKeySchema } } },
+  },
+  responses: { 200: { description: 'API Key updated' } },
+});
+
+masterRoute.openapi(putUpdateApiKeyRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const body = c.req.valid('json');
+
+    const updatedKey = await prisma.apiKey.update({
+      where: { id },
+      data: body,
+      select: {
+        id: true,
+        clientName: true,
+        keyPrefix: true,
+        rateLimit: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return c.json(createSuccessResponse(updatedKey, 'API Key updated successfully'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to update API Key', 'UPDATE_FAILED', err.message), 400);
+  }
+});
+
+// DELETE /api/v1/admin/api-keys/{id} (Soft-Delete / Revoke API Key)
+const deleteApiKeyRoute = createRoute({
+  method: 'delete',
+  path: '/api-keys/{id}',
+  summary: 'Revoke / Soft-Delete API Key',
+  tags: ['Admin API Keys'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'API Key revoked' } },
+});
+
+masterRoute.openapi(deleteApiKeyRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const revokedKey = await prisma.apiKey.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+    return c.json(createSuccessResponse(revokedKey, 'API Key revoked successfully'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to revoke API Key', 'REVOKE_FAILED', err.message), 400);
+  }
+});
+
+// GET /api/v1/admin/trash/api-keys (List Revoked / Trash API Keys)
+const getTrashApiKeysRoute = createRoute({
+  method: 'get',
+  path: '/trash/api-keys',
+  summary: 'List Revoked / Trash API Keys',
+  tags: ['Admin API Keys'],
+  security: [{ BearerAuth: [] }],
+  responses: { 200: { description: 'Trash API Keys list' } },
+});
+
+masterRoute.openapi(getTrashApiKeysRoute, async (c) => {
+  const keys = await prisma.apiKey.findMany({
+    where: { deletedAt: { not: null } },
+    select: {
+      id: true,
+      clientName: true,
+      keyPrefix: true,
+      rateLimit: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+  return c.json(createSuccessResponse(keys, 'Trash API Keys fetched'), 200);
+});
+
+// POST /api/v1/admin/restore/api-keys/{id} (Restore Revoked API Key)
+const postRestoreApiKeyRoute = createRoute({
+  method: 'post',
+  path: '/restore/api-keys/{id}',
+  summary: 'Restore Revoked API Key',
+  tags: ['Admin API Keys'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: { 200: { description: 'API Key restored' } },
+});
+
+masterRoute.openapi(postRestoreApiKeyRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const restoredKey = await prisma.apiKey.update({
+      where: { id },
+      data: { deletedAt: null, isActive: true },
+    });
+    return c.json(createSuccessResponse(restoredKey, 'API Key restored successfully'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to restore API Key', 'RESTORE_FAILED', err.message), 400);
   }
 });
