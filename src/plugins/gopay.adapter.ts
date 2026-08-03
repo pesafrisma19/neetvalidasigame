@@ -101,7 +101,12 @@ export class GopayAdapter implements BaseProviderAdapter {
         }
 
         const nicknamePath = ctx.responseFieldMapping['nickname'];
-        const nickname = nicknamePath ? extractNestedField(rawJson, nicknamePath) : rawJson.data;
+        let nickname: any = nicknamePath ? extractNestedField(rawJson, nicknamePath) : undefined;
+        if (!nickname && typeof rawJson.data === 'string') {
+          nickname = rawJson.data;
+        } else if (!nickname && rawJson.data?.username) {
+          nickname = rawJson.data.username;
+        }
 
         if (!nickname) {
           throw new Error('GoPay Provider response does not contain nickname');
