@@ -4,6 +4,7 @@ import { GopayAdapter } from '../../plugins/gopay.adapter.js';
 import { MelpaAdapter } from '../../plugins/melpa.adapter.js';
 import { MobapayAdapter } from '../../plugins/mobapay.adapter.js';
 import { SupersusAdapter } from '../../plugins/supersus.adapter.js';
+import { NeteaseAdapter } from '../../plugins/netease.adapter.js';
 import { logger } from '../../utils/logger.js';
 
 export interface ValidateAccountRequest {
@@ -29,8 +30,8 @@ export interface ValidateAccountResult {
     responseTimeMs: number;
   };
 }
-
-export class ValidationEngineService {
+ 
+ export class ValidationEngineService {
   private readonly adapters: Map<string, BaseProviderAdapter> = new Map();
 
   constructor(private readonly prisma: PrismaClient) {
@@ -39,6 +40,7 @@ export class ValidationEngineService {
     this.registerAdapter(new MelpaAdapter());
     this.registerAdapter(new MobapayAdapter());
     this.registerAdapter(new SupersusAdapter());
+    this.registerAdapter(new NeteaseAdapter());
   }
 
   registerAdapter(adapter: BaseProviderAdapter) {
