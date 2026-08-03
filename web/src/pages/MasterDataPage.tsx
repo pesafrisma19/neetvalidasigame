@@ -8,15 +8,6 @@ export interface BuilderFieldOption {
   value: string;
 }
 
-export interface BuilderField {
-  key: string;
-  label: string;
-  type: 'text' | 'select';
-  required: boolean;
-  placeholder?: string;
-  options?: BuilderFieldOption[];
-}
-
 export const MasterDataPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'games' | 'providers' | 'capabilities' | 'mappings'>('games');
@@ -49,9 +40,18 @@ export const MasterDataPage: React.FC = () => {
     priority: 1,
   });
 
-  // Dynamic Input Fields Builder State for Games
-  const [builderFields, setBuilderFields] = useState<BuilderField[]>([
-    { key: 'userId', label: 'User ID', type: 'text', required: true, placeholder: 'Masukkan User ID...' },
+  // Fixed 2-Slot Input Fields State for Games
+  // Slot 1: User ID (Always Active)
+  const [slot1Label, setSlot1Label] = useState('User ID');
+  const [slot1Placeholder, setSlot1Placeholder] = useState('Masukkan User ID...');
+
+  // Slot 2: Server / Zone ID (Optional: 'none' | 'text' | 'select')
+  const [slot2Mode, setSlot2Mode] = useState<'none' | 'text' | 'select'>('none');
+  const [slot2Label, setSlot2Label] = useState('Zone ID');
+  const [slot2Placeholder, setSlot2Placeholder] = useState('Masukkan Zone ID...');
+  const [slot2Options, setSlot2Options] = useState<BuilderFieldOption[]>([
+    { label: 'Asia (SEA)', value: 'sea' },
+    { label: 'America (LATAM)', value: 'latam' },
   ]);
 
   const fetchMasterData = async () => {
@@ -120,8 +120,14 @@ export const MasterDataPage: React.FC = () => {
       adapterKey: 'GOPAY_ADAPTER',
       priority: 1,
     });
-    setBuilderFields([
-      { key: 'userId', label: 'User ID', type: 'text', required: true, placeholder: 'Masukkan User ID...' },
+    setSlot1Label('User ID');
+    setSlot1Placeholder('Masukkan User ID...');
+    setSlot2Mode('none');
+    setSlot2Label('Zone ID');
+    setSlot2Placeholder('Masukkan Zone ID...');
+    setSlot2Options([
+      { label: 'Asia (SEA)', value: 'sea' },
+      { label: 'America (LATAM)', value: 'latam' },
     ]);
     setIsModalOpen(true);
   };
@@ -144,59 +150,61 @@ export const MasterDataPage: React.FC = () => {
       priority: item.priority || 1,
     });
 
-    // Populate builderFields if game has inputFields
-    if (item.inputFields?.fields && Array.isArray(item.inputFields.fields) && item.inputFields.fields.length > 0) {
-      setBuilderFields(JSON.parse(JSON.stringify(item.inputFields.fields)));
+    // Populate Slot 1 & Slot 2 state from existing inputFields
+    const fields = item.inputFields?.fields;
+    if (Array.isArray(fields) && fields.length > 0) {
+      const userField = fields.find((f: any) => f.key === 'userId');
+      if (userField) {
+        setSlot1Label(userField.label || 'User ID');
+        setSlot1Placeholder(userField.placeholder || 'Masukkan User ID...');
+      } else {
+        setSlot1Label('User ID');
+        setSlot1Placeholder('Masukkan User ID...');
+      }
+
+      const zoneField = fields.find((f: any) => f.key === 'zoneId');
+      if (zoneField) {
+        if (zoneField.type === 'select') {
+          setSlot2Mode('select');
+          setSlot2Label(zoneField.label || 'Pilih Server');
+          setSlot2Placeholder(zoneField.placeholder || 'Pilih Server...');
+          setSlot2Options(zoneField.options && zoneField.options.length > 0 ? zoneField.options : [{ label: 'Asia', value: 'sea' }]);
+        } else {
+          setSlot2Mode('text');
+          setSlot2Label(zoneField.label || 'Zone ID');
+          setSlot2Placeholder(zoneField.placeholder || 'Masukkan Zone ID...');
+        }
+      } else {
+        setSlot2Mode('none');
+        setSlot2Label('Zone ID');
+        setSlot2Placeholder('Masukkan Zone ID...');
+      }
     } else {
-      setBuilderFields([
-        { key: 'userId', label: 'User ID', type: 'text', required: true, placeholder: 'Masukkan User ID...' },
-      ]);
+      setSlot1Label('User ID');
+      setSlot1Placeholder('Masukkan User ID...');
+      setSlot2Mode('none');
     }
     setIsModalOpen(true);
   };
 
-  // Helper functions for Dynamic Builder State
-  const addBuilderField = () => {
-    setBuilderFields([
-      ...builderFields,
-      { key: 'zoneId', label: 'Zone / Server ID', type: 'text', required: true, placeholder: 'Masukkan Zone ID...' },
+  // Helper functions for Slot 2 Options
+  const addSlot2Option = () => {
+    setSlot2Options([
+      ...slot2Options,
+      { label: `Opsi ${slot2Options.length + 1}`, value: `opt_${slot2Options.length + 1}` },
     ]);
   };
 
-  const removeBuilderField = (index: number) => {
-    setBuilderFields(builderFields.filter((_, i) => i !== index));
+  const removeSlot2Option = (index: number) => {
+    setSlot2Options(slot2Options.filter((_, i) => i !== index));
   };
 
-  const updateBuilderField = (index: number, key: keyof BuilderField, value: any) => {
-    const updated = [...builderFields];
-    if (key === 'type' && value === 'select' && !updated[index].options) {
-      updated[index].options = [{ label: 'Option 1', value: 'opt_1' }];
+  const updateSlot2Option = (index: number, key: 'label' | 'value', val: string) => {
+    const updated = [...slot2Options];
+    if (updated[index]) {
+      updated[index][key] = val;
     }
-    updated[index] = { ...updated[index], [key]: value };
-    setBuilderFields(updated);
-  };
-
-  const addOptionToField = (fieldIndex: number) => {
-    const updated = [...builderFields];
-    const opts = updated[fieldIndex].options || [];
-    updated[fieldIndex].options = [...opts, { label: `Opsi ${opts.length + 1}`, value: `val_${opts.length + 1}` }];
-    setBuilderFields(updated);
-  };
-
-  const removeOptionFromField = (fieldIndex: number, optionIndex: number) => {
-    const updated = [...builderFields];
-    if (updated[fieldIndex].options) {
-      updated[fieldIndex].options = updated[fieldIndex].options!.filter((_, i) => i !== optionIndex);
-    }
-    setBuilderFields(updated);
-  };
-
-  const updateOptionInField = (fieldIndex: number, optionIndex: number, key: 'label' | 'value', value: string) => {
-    const updated = [...builderFields];
-    if (updated[fieldIndex].options && updated[fieldIndex].options![optionIndex]) {
-      updated[fieldIndex].options![optionIndex][key] = value;
-    }
-    setBuilderFields(updated);
+    setSlot2Options(updated);
   };
 
   const handleSaveData = async (e: React.FormEvent) => {
@@ -207,14 +215,41 @@ export const MasterDataPage: React.FC = () => {
       let payload: any = { ...formData };
 
       if (activeTab === 'games') {
+        const fields: any[] = [
+          {
+            key: 'userId',
+            label: slot1Label || 'User ID',
+            type: 'text',
+            required: true,
+            placeholder: slot1Placeholder || 'Masukkan User ID...',
+          },
+        ];
+
+        if (slot2Mode === 'text') {
+          fields.push({
+            key: 'zoneId',
+            label: slot2Label || 'Zone ID',
+            type: 'text',
+            required: true,
+            placeholder: slot2Placeholder || 'Masukkan Zone ID...',
+          });
+        } else if (slot2Mode === 'select') {
+          fields.push({
+            key: 'zoneId',
+            label: slot2Label || 'Pilih Server',
+            type: 'select',
+            required: true,
+            placeholder: slot2Placeholder || 'Pilih Server...',
+            options: slot2Options,
+          });
+        }
+
         payload = {
           code: formData.code,
           name: formData.name,
           userIdRegex: formData.userIdRegex || undefined,
           zoneIdRegex: formData.zoneIdRegex || undefined,
-          inputFields: {
-            fields: builderFields,
-          },
+          inputFields: { fields },
         };
       } else if (activeTab === 'mappings') {
         payload = {
@@ -647,114 +682,135 @@ export const MasterDataPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* DYNAMIC INPUT FIELDS BUILDER UI FOR GAMES */}
-                      <div className="pt-4 border-t border-slate-800/80 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                            <ListPlus className="w-4 h-4 text-blue-400" />
-                            <span>Input Fields Schema Builder (Dynamic Form)</span>
-                          </label>
-                          <button
-                            type="button"
-                            onClick={addBuilderField}
-                            className="text-xs text-blue-400 hover:text-blue-300 bg-blue-950/60 hover:bg-blue-900/60 px-3 py-1.5 rounded-lg border border-blue-800 transition-colors flex items-center gap-1 font-semibold"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Tambah Field</span>
-                          </button>
+                      {/* FIXED 2-SLOT FIELD BUILDER UI FOR GAMES */}
+                      <div className="pt-4 border-t border-slate-800/80 space-y-4">
+                        <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                          <ListPlus className="w-4 h-4 text-blue-400" />
+                          <span>Input Fields Schema Config (Fix 2 Slots)</span>
+                        </label>
+
+                        {/* SLOT 1: USER ID (FIXED, ALWAYS ACTIVE) */}
+                        <div className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                          <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+                            <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                              <span>Slot 1: User ID</span>
+                              <span className="text-[10px] bg-blue-950 text-blue-300 border border-blue-800 px-2 py-0.5 rounded font-mono">key: "userId"</span>
+                            </span>
+                            <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
+                              Selalu Aktif (Wajib)
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <label className="block text-[10px] text-slate-400 mb-1">Label Tampilan *</label>
+                              <input
+                                type="text"
+                                value={slot1Label}
+                                onChange={(e) => setSlot1Label(e.target.value)}
+                                required
+                                placeholder="e.g. User ID"
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-slate-400 mb-1">Placeholder Text *</label>
+                              <input
+                                type="text"
+                                value={slot1Placeholder}
+                                onChange={(e) => setSlot1Placeholder(e.target.value)}
+                                required
+                                placeholder="e.g. Masukkan User ID..."
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="space-y-3">
-                          {builderFields.map((field, fieldIdx) => (
-                            <div key={fieldIdx} className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-3 relative">
-                              <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
-                                <span className="text-[11px] font-bold text-slate-400">
-                                  Field #{fieldIdx + 1}: <span className="text-blue-400">{field.key || 'unnamed'}</span>
-                                </span>
-                                {builderFields.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeBuilderField(fieldIdx)}
-                                    className="text-slate-500 hover:text-red-400 p-1 rounded transition-colors"
-                                    title="Hapus Field Ini"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
+                        {/* SLOT 2: SERVER / ZONE ID (OPTIONAL TOGGLE) */}
+                        <div className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800/60 pb-2 gap-2">
+                            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                              <span>Slot 2: Server / Zone ID</span>
+                              <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-mono">key: "zoneId"</span>
+                            </span>
 
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            {/* Mode Radio Toggle */}
+                            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => setSlot2Mode('none')}
+                                className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                                  slot2Mode === 'none' ? 'bg-slate-700 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                Tidak Perlu
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSlot2Mode('text')}
+                                className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                                  slot2Mode === 'text' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                Text Bebas
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSlot2Mode('select')}
+                                className={`px-2.5 py-1 rounded font-medium transition-colors ${
+                                  slot2Mode === 'select' ? 'bg-amber-600 text-white font-bold' : 'text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                Dropdown Pilihan
+                              </button>
+                            </div>
+                          </div>
+
+                          {slot2Mode === 'none' && (
+                            <p className="text-[11px] text-slate-500 italic">
+                              Game ini hanya membutuhkan User ID saja (e.g. Free Fire). Field Zone ID tidak akan ditampilkan di form.
+                            </p>
+                          )}
+
+                          {(slot2Mode === 'text' || slot2Mode === 'select') && (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div>
-                                  <label className="block text-[10px] text-slate-400 mb-1">Key *</label>
+                                  <label className="block text-[10px] text-slate-400 mb-1">Label Tampilan *</label>
                                   <input
                                     type="text"
-                                    value={field.key}
-                                    onChange={(e) => updateBuilderField(fieldIdx, 'key', e.target.value)}
+                                    value={slot2Label}
+                                    onChange={(e) => setSlot2Label(e.target.value)}
                                     required
-                                    placeholder="e.g. userId"
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500"
+                                    placeholder={slot2Mode === 'select' ? 'e.g. Pilih Server' : 'e.g. Zone ID'}
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-amber-500"
                                   />
                                 </div>
-
                                 <div>
-                                  <label className="block text-[10px] text-slate-400 mb-1">Label *</label>
+                                  <label className="block text-[10px] text-slate-400 mb-1">Placeholder Text *</label>
                                   <input
                                     type="text"
-                                    value={field.label}
-                                    onChange={(e) => updateBuilderField(fieldIdx, 'label', e.target.value)}
+                                    value={slot2Placeholder}
+                                    onChange={(e) => setSlot2Placeholder(e.target.value)}
                                     required
-                                    placeholder="e.g. User ID"
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-blue-500"
+                                    placeholder={slot2Mode === 'select' ? 'e.g. Pilih Server...' : 'e.g. Masukkan Zone ID...'}
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-amber-500"
                                   />
                                 </div>
-
-                                <div>
-                                  <label className="block text-[10px] text-slate-400 mb-1">Type *</label>
-                                  <select
-                                    value={field.type}
-                                    onChange={(e) => updateBuilderField(fieldIdx, 'type', e.target.value as any)}
-                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
-                                  >
-                                    <option value="text">text (Input Biasa)</option>
-                                    <option value="select">select (Dropdown)</option>
-                                  </select>
-                                </div>
-
-                                <div className="flex items-center pt-4">
-                                  <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={field.required}
-                                      onChange={(e) => updateBuilderField(fieldIdx, 'required', e.target.checked)}
-                                      className="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0"
-                                    />
-                                    <span>Wajib (Required)</span>
-                                  </label>
-                                </div>
                               </div>
 
-                              <div>
-                                <label className="block text-[10px] text-slate-400 mb-1">Placeholder</label>
-                                <input
-                                  type="text"
-                                  value={field.placeholder || ''}
-                                  onChange={(e) => updateBuilderField(fieldIdx, 'placeholder', e.target.value)}
-                                  placeholder="e.g. Masukkan User ID..."
-                                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-blue-500"
-                                />
-                              </div>
-
-                              {/* SUB-SECTION FOR DROPDOWN OPTIONS IF TYPE === SELECT */}
-                              {field.type === 'select' && (
-                                <div className="mt-2 pt-2 border-t border-slate-900 space-y-2 bg-slate-900/60 p-3 rounded-lg border border-slate-800/60">
+                              {/* DROPDOWN OPTIONS LIST IF SLOT 2 MODE === SELECT */}
+                              {slot2Mode === 'select' && (
+                                <div className="pt-2 border-t border-slate-900 space-y-2 bg-slate-900/60 p-3 rounded-lg border border-slate-800/60">
                                   <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                      Opsi Dropdown (Server Options):
+                                      Daftar Opsi Dropdown Server:
                                     </span>
                                     <button
                                       type="button"
-                                      onClick={() => addOptionToField(fieldIdx)}
-                                      className="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-950/60 px-2 py-1 rounded border border-amber-800 font-medium flex items-center gap-1"
+                                      onClick={addSlot2Option}
+                                      className="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-950/60 px-2 py-1 rounded border border-amber-800 font-medium flex items-center gap-1 transition-colors"
                                     >
                                       <Plus className="w-3 h-3" />
                                       <span>Tambah Opsi</span>
@@ -762,31 +818,32 @@ export const MasterDataPage: React.FC = () => {
                                   </div>
 
                                   <div className="space-y-1.5">
-                                    {field.options?.map((opt, optIdx) => (
+                                    {slot2Options.map((opt, optIdx) => (
                                       <div key={optIdx} className="flex items-center gap-2 text-xs">
                                         <input
                                           type="text"
                                           value={opt.label}
-                                          onChange={(e) => updateOptionInField(fieldIdx, optIdx, 'label', e.target.value)}
-                                          placeholder="Label (e.g. Asia)"
+                                          onChange={(e) => updateSlot2Option(optIdx, 'label', e.target.value)}
+                                          placeholder="Label Tampilan (e.g. Asia)"
                                           required
-                                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-medium"
                                         />
                                         <input
                                           type="text"
                                           value={opt.value}
-                                          onChange={(e) => updateOptionInField(fieldIdx, optIdx, 'value', e.target.value)}
-                                          placeholder="Value (e.g. os_asia)"
+                                          onChange={(e) => updateSlot2Option(optIdx, 'value', e.target.value)}
+                                          placeholder="Value Code (e.g. os_asia)"
                                           required
-                                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
                                         />
-                                        {field.options!.length > 1 && (
+                                        {slot2Options.length > 1 && (
                                           <button
                                             type="button"
-                                            onClick={() => removeOptionFromField(fieldIdx, optIdx)}
+                                            onClick={() => removeSlot2Option(optIdx)}
                                             className="text-slate-500 hover:text-red-400 p-1"
+                                            title="Hapus Opsi"
                                           >
-                                            <X className="w-3 h-3" />
+                                            <X className="w-3.5 h-3.5" />
                                           </button>
                                         )}
                                       </div>
@@ -795,7 +852,7 @@ export const MasterDataPage: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                          ))}
+                          )}
                         </div>
                       </div>
                     </>
