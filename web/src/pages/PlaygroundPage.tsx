@@ -266,7 +266,7 @@ export const PlaygroundPage: React.FC = () => {
                       >
                         {field.options?.map((opt: any) => (
                           <option key={opt.value} value={opt.value}>
-                            {opt.label} ({opt.value})
+                            {opt.label}
                           </option>
                         ))}
                       </select>
