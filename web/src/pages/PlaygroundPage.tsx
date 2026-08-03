@@ -74,6 +74,28 @@ export const PlaygroundPage: React.FC = () => {
           },
           {
             id: '3',
+            code: 'honkai-star-rail',
+            name: 'Honkai: Star Rail',
+            inputFields: {
+              fields: [
+                { key: 'userId', label: 'User ID / UID', type: 'text', required: true },
+                {
+                  key: 'zoneId',
+                  label: 'Pilih Server',
+                  type: 'select',
+                  required: true,
+                  options: [
+                    { value: 'prod_official_asia', label: 'Asia' },
+                    { value: 'prod_official_usa', label: 'America' },
+                    { value: 'prod_official_euro', label: 'Europe' },
+                    { value: 'prod_official_cht', label: 'TW/HK/MO' },
+                  ],
+                },
+              ],
+            },
+          },
+          {
+            id: '3',
             code: 'mobile-legends',
             name: 'Mobile Legends: Bang Bang',
             inputFields: {
