@@ -20,9 +20,9 @@ export class NeteaseAdapter implements BaseProviderAdapter {
     const hostId = ctx.zoneId && ctx.zoneId.trim() !== '' ? ctx.zoneId.trim() : '-1';
     const baseUrl = ctx.baseUrl.endsWith('/') ? ctx.baseUrl.slice(0, -1) : ctx.baseUrl;
 
-    const targetUrl = new URL(`${baseUrl}/gamesclub/${slug}/${hostId}/login-role`);
-    targetUrl.searchParams.append('show_roleid', ctx.userId);
-    targetUrl.searchParams.append('device_type', 'pc');
+    const targetUrl = new URL(`${baseUrl}/gameclub/${slug}/${hostId}/login-role`);
+    targetUrl.searchParams.append('roleid', ctx.userId);
+    targetUrl.searchParams.append('client_type', 'gameclub');
 
     try {
       const response = await fetch(targetUrl.toString(), {
