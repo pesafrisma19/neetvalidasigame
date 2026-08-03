@@ -52,6 +52,7 @@ const inputFieldSchema = z.object({
   type: z.enum(['text', 'select']),
   required: z.boolean().optional().default(false),
   placeholder: z.string().optional(),
+  sampleValue: z.string().optional(),
   options: z
     .array(
       z.object({
