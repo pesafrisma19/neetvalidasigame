@@ -672,6 +672,11 @@ export const MasterDataPage: React.FC = () => {
                           setZoneIdParamKey('zoneId');
                           setNicknameResponsePath('data.name');
                           setRegionResponsePath('');
+                        } else if (newAdapter === 'NETEASE_ADAPTER') {
+                          setUserIdParamKey('roleid');
+                          setZoneIdParamKey('zoneId');
+                          setNicknameResponsePath('data.rolename');
+                          setRegionResponsePath('data.alpha2');
                         } else {
                           setUserIdParamKey('userId');
                           setZoneIdParamKey('zoneId');
@@ -685,6 +690,7 @@ export const MasterDataPage: React.FC = () => {
                       <option value="MOBAPAY_ADAPTER">MOBAPAY_ADAPTER (MobaPay App Shop)</option>
                       <option value="MELPA_ADAPTER">MELPA_ADAPTER (Melpa Digital)</option>
                       <option value="SUPERSUS_ADAPTER">SUPERSUS_ADAPTER (Super Sus WebPay API)</option>
+                      <option value="NETEASE_ADAPTER">NETEASE_ADAPTER (NetEase Pay API)</option>
                     </select>
                   </div>
 
