@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../lib/prisma.js';
 import { GameRepository } from '../../repositories/game/game.repository.js';
 import { ProviderRepository, ProviderEndpointRepository } from '../../repositories/provider/provider.repository.js';
 import { CapabilityRepository } from '../../repositories/capability/capability.repository.js';
@@ -7,8 +7,6 @@ import { MappingRepository } from '../../repositories/mapping/mapping.repository
 import { MasterDataService } from '../../services/master/master-data.service.js';
 import { adminAuthMiddleware } from '../../middlewares/auth.middleware.js';
 import { createSuccessResponse, createErrorResponse } from '../../utils/response-envelope.js';
-
-const prisma = new PrismaClient();
 const gameRepo = new GameRepository(prisma);
 const providerRepo = new ProviderRepository(prisma);
 const endpointRepo = new ProviderEndpointRepository(prisma);

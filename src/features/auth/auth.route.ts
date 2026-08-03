@@ -1,11 +1,10 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../lib/prisma.js';
 import { AdminRepository } from '../../repositories/admin/admin.repository.js';
 import { AuthService } from '../../services/auth/auth.service.js';
 import { adminAuthMiddleware, type JwtPayload } from '../../middlewares/auth.middleware.js';
 import { createSuccessResponse, createErrorResponse } from '../../utils/response-envelope.js';
 
-const prisma = new PrismaClient();
 const adminRepo = new AdminRepository(prisma);
 const authService = new AuthService(adminRepo);
 

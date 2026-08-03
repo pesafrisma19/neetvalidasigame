@@ -1,12 +1,15 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../lib/prisma.js';
 import { ValidationEngineService } from '../../services/engine/validation-engine.service.js';
 import { createSuccessResponse, createErrorResponse } from '../../utils/response-envelope.js';
+import { apiKeyMiddleware } from '../../middlewares/api-key.middleware.js';
 
-const prisma = new PrismaClient();
 const validationEngine = new ValidationEngineService(prisma);
 
 export const validationRoute = new OpenAPIHono();
+
+// Enforce X-API-KEY Authentication ONLY on /validate-account route
+validationRoute.use('/validate-account', apiKeyMiddleware);
 
 // Public Games Catalog Route (Unauthenticated for Playground UI)
 // Public Games Catalog Route (Unauthenticated for Playground UI & Client API Specs)
@@ -94,6 +97,7 @@ const postValidateAccountRoute = createRoute({
       },
     },
   },
+  security: [{ ApiKeyAuth: [] }],
   responses: {
     200: {
       content: {
@@ -102,6 +106,9 @@ const postValidateAccountRoute = createRoute({
         },
       },
       description: 'Validation successful.',
+    },
+    401: {
+      description: 'Unauthorized: X-API-KEY header missing, invalid, or revoked.',
     },
     400: {
       description: 'Invalid input parameters or regex check failed.',

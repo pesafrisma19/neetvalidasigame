@@ -59,6 +59,12 @@ app.doc('/api/v1/openapi.json', () => ({
   ],
   components: {
     securitySchemes: {
+      ApiKeyAuth: {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-API-KEY',
+        description: 'Public Web Topup Client API Key',
+      },
       BearerAuth: {
         type: 'http',
         scheme: 'bearer',
