@@ -1,7 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
 import type { ValidationResponse } from '../types';
-import { Play, Copy, Check, Zap, Server, ShieldCheck, RefreshCw, Layers } from 'lucide-react';
+import {
+  Play,
+  Copy,
+  Check,
+  Zap,
+  Server,
+  ShieldCheck,
+  RefreshCw,
+  Layers,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Globe,
+  UserCheck,
+} from 'lucide-react';
 
 export const PlaygroundPage: React.FC = () => {
   const [gamesList, setGamesList] = useState<any[]>([]);
@@ -146,6 +161,14 @@ export const PlaygroundPage: React.FC = () => {
     { key: 'userId', label: 'User ID / Player ID', type: 'text', required: true },
   ];
 
+  // First Topup Counts
+  const availableCount = Array.isArray(result?.capabilities.firstTopupTiers)
+    ? result.capabilities.firstTopupTiers.filter((t: any) => t.available).length
+    : 0;
+  const totalCount = Array.isArray(result?.capabilities.firstTopupTiers)
+    ? result.capabilities.firstTopupTiers.length
+    : 0;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header Banner */}
@@ -171,7 +194,7 @@ export const PlaygroundPage: React.FC = () => {
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
             <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Form Request Validasi</h3>
-            
+
             <form onSubmit={handleValidate} className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1 flex items-center justify-between">
@@ -246,8 +269,9 @@ export const PlaygroundPage: React.FC = () => {
         {/* Panel Kanan: Hasil Response JSON & Card Display */}
         <div className="lg:col-span-7 space-y-6">
           {errorMsg && (
-            <div className="bg-red-950/40 border border-red-800/80 rounded-2xl p-4 text-xs text-red-300 font-mono shadow-xl">
-              ❌ Error: {errorMsg}
+            <div className="bg-red-950/40 border border-red-800/80 rounded-2xl p-4 text-xs text-red-300 font-mono shadow-xl flex items-center gap-2">
+              <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>Error: {errorMsg}</span>
             </div>
           )}
 
@@ -260,8 +284,9 @@ export const PlaygroundPage: React.FC = () => {
                     <ShieldCheck className="w-5 h-5 text-emerald-400" />
                     <span className="text-sm font-bold text-white uppercase tracking-wider">Hasil Validasi Gateway</span>
                   </div>
-                  <div className="text-xs font-mono text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-800">
-                    ⏱️ {result.meta.responseTimeMs} ms
+                  <div className="text-xs font-mono text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-800 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>{result.meta.responseTimeMs} ms</span>
                   </div>
                 </div>
 
@@ -296,6 +321,7 @@ export const PlaygroundPage: React.FC = () => {
                   <div className="flex flex-wrap gap-2">
                     {result.capabilities.nickname && (
                       <div className="bg-blue-950/60 border border-blue-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                        <UserCheck className="w-3.5 h-3.5 text-blue-400" />
                         <span className="text-slate-400">Nickname:</span>
                         <span className="font-bold text-blue-300 font-mono">{String(result.capabilities.nickname)}</span>
                       </div>
@@ -303,6 +329,7 @@ export const PlaygroundPage: React.FC = () => {
 
                     {result.capabilities.region && (
                       <div className="bg-amber-950/60 border border-amber-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-amber-400" />
                         <span className="text-slate-400">Region:</span>
                         <span className="font-bold text-amber-300 font-mono">{String(result.capabilities.region)}</span>
                       </div>
@@ -310,10 +337,27 @@ export const PlaygroundPage: React.FC = () => {
 
                     {result.capabilities.firstTopupAvailable !== undefined && (
                       <div className="bg-purple-950/60 border border-purple-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-400" />
                         <span className="text-slate-400">First Topup Bonus:</span>
-                        <span className={`font-bold font-mono ${result.capabilities.firstTopupAvailable ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {result.capabilities.firstTopupAvailable ? 'AVAILABLE ✅' : 'USED ❌'}
-                        </span>
+                        {totalCount > 0 ? (
+                          <span className={`font-bold font-mono flex items-center gap-1 ${availableCount > 0 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            <span>{availableCount}/{totalCount} Tier Tersedia</span>
+                            {availableCount > 0 ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                            )}
+                          </span>
+                        ) : (
+                          <span className={`font-bold font-mono flex items-center gap-1 ${result.capabilities.firstTopupAvailable ? 'text-emerald-400' : 'text-slate-400'}`}>
+                            <span>{result.capabilities.firstTopupAvailable ? 'TERSEDIA' : 'TERPAKAI'}</span>
+                            {result.capabilities.firstTopupAvailable ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <XCircle className="w-3.5 h-3.5 text-slate-400" />
+                            )}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -328,13 +372,20 @@ export const PlaygroundPage: React.FC = () => {
                         {result.capabilities.firstTopupTiers.map((t: any) => (
                           <div
                             key={t.id || t.name}
-                            className={`p-2 rounded-lg border text-[11px] font-mono text-center ${
+                            className={`p-2 rounded-lg border text-[11px] font-mono text-center flex flex-col items-center justify-center ${
                               t.available
                                 ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-300'
                                 : 'bg-slate-900 border-slate-800 text-slate-500'
                             }`}
                           >
-                            <div className="font-bold">{t.name}</div>
+                            <div className="font-bold flex items-center gap-1">
+                              <span>{t.name}</span>
+                              {t.available ? (
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <XCircle className="w-3 h-3 text-slate-500" />
+                              )}
+                            </div>
                             <div className="text-[9px] mt-0.5">{t.statusText}</div>
                           </div>
                         ))}
