@@ -1,7 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
-import { Database, Search, Plus, Radio, Gamepad2, Layers, RefreshCw, X, Trash2, Edit3, RotateCcw, Archive } from 'lucide-react';
+import { Database, Search, Plus, Radio, Gamepad2, Layers, RefreshCw, X, Trash2, Edit3, RotateCcw, Archive, ListPlus } from 'lucide-react';
+
+export interface BuilderFieldOption {
+  label: string;
+  value: string;
+}
+
+export interface BuilderField {
+  key: string;
+  label: string;
+  type: 'text' | 'select';
+  required: boolean;
+  placeholder?: string;
+  options?: BuilderFieldOption[];
+}
 
 export const MasterDataPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +48,11 @@ export const MasterDataPage: React.FC = () => {
     adapterKey: 'GOPAY_ADAPTER',
     priority: 1,
   });
+
+  // Dynamic Input Fields Builder State for Games
+  const [builderFields, setBuilderFields] = useState<BuilderField[]>([
+    { key: 'userId', label: 'User ID', type: 'text', required: true, placeholder: 'Masukkan User ID...' },
+  ]);
 
   const fetchMasterData = async () => {
     const token = localStorage.getItem('admin_token');
@@ -101,6 +120,9 @@ export const MasterDataPage: React.FC = () => {
       adapterKey: 'GOPAY_ADAPTER',
       priority: 1,
     });
+    setBuilderFields([
+      { key: 'userId', label: 'User ID', type: 'text', required: true, placeholder: 'Masukkan User ID...' },
+    ]);
     setIsModalOpen(true);
   };
 
@@ -121,7 +143,60 @@ export const MasterDataPage: React.FC = () => {
       adapterKey: item.adapterKey || 'GOPAY_ADAPTER',
       priority: item.priority || 1,
     });
+
+    // Populate builderFields if game has inputFields
+    if (item.inputFields?.fields && Array.isArray(item.inputFields.fields) && item.inputFields.fields.length > 0) {
+      setBuilderFields(JSON.parse(JSON.stringify(item.inputFields.fields)));
+    } else {
+      setBuilderFields([
+        { key: 'userId', label: 'User ID', type: 'text', required: true, placeholder: 'Masukkan User ID...' },
+      ]);
+    }
     setIsModalOpen(true);
+  };
+
+  // Helper functions for Dynamic Builder State
+  const addBuilderField = () => {
+    setBuilderFields([
+      ...builderFields,
+      { key: 'zoneId', label: 'Zone / Server ID', type: 'text', required: true, placeholder: 'Masukkan Zone ID...' },
+    ]);
+  };
+
+  const removeBuilderField = (index: number) => {
+    setBuilderFields(builderFields.filter((_, i) => i !== index));
+  };
+
+  const updateBuilderField = (index: number, key: keyof BuilderField, value: any) => {
+    const updated = [...builderFields];
+    if (key === 'type' && value === 'select' && !updated[index].options) {
+      updated[index].options = [{ label: 'Option 1', value: 'opt_1' }];
+    }
+    updated[index] = { ...updated[index], [key]: value };
+    setBuilderFields(updated);
+  };
+
+  const addOptionToField = (fieldIndex: number) => {
+    const updated = [...builderFields];
+    const opts = updated[fieldIndex].options || [];
+    updated[fieldIndex].options = [...opts, { label: `Opsi ${opts.length + 1}`, value: `val_${opts.length + 1}` }];
+    setBuilderFields(updated);
+  };
+
+  const removeOptionFromField = (fieldIndex: number, optionIndex: number) => {
+    const updated = [...builderFields];
+    if (updated[fieldIndex].options) {
+      updated[fieldIndex].options = updated[fieldIndex].options!.filter((_, i) => i !== optionIndex);
+    }
+    setBuilderFields(updated);
+  };
+
+  const updateOptionInField = (fieldIndex: number, optionIndex: number, key: 'label' | 'value', value: string) => {
+    const updated = [...builderFields];
+    if (updated[fieldIndex].options && updated[fieldIndex].options![optionIndex]) {
+      updated[fieldIndex].options![optionIndex][key] = value;
+    }
+    setBuilderFields(updated);
   };
 
   const handleSaveData = async (e: React.FormEvent) => {
@@ -130,7 +205,18 @@ export const MasterDataPage: React.FC = () => {
 
     try {
       let payload: any = { ...formData };
-      if (activeTab === 'mappings') {
+
+      if (activeTab === 'games') {
+        payload = {
+          code: formData.code,
+          name: formData.name,
+          userIdRegex: formData.userIdRegex || undefined,
+          zoneIdRegex: formData.zoneIdRegex || undefined,
+          inputFields: {
+            fields: builderFields,
+          },
+        };
+      } else if (activeTab === 'mappings') {
         payload = {
           gameId: formData.gameId,
           capabilityId: formData.capabilityId,
@@ -298,153 +384,83 @@ export const MasterDataPage: React.FC = () => {
           }`}
         >
           <Database className="w-4 h-4" />
-          <span>Validation Mappings</span>
+          <span>Game Validation Mappings</span>
         </button>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="flex items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+      {/* Search & Counter Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Cari di ${viewMode === 'trash' ? 'Recycle Bin' : 'Daftar Aktif'} ${activeTab}...`}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            placeholder={`Cari data ${activeTab}...`}
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
           />
         </div>
-        <button
-          onClick={fetchMasterData}
-          className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors"
-          title="Refresh Data"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+
+        <div className="text-xs text-slate-400 font-mono">
+          Total Data: <span className="text-white font-bold">{filteredData.length}</span> items
+        </div>
       </div>
 
-      {/* Data Table View */}
+      {/* Main Data Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 border-b border-slate-800 uppercase tracking-wider text-[11px] text-slate-400">
+            <thead className="bg-slate-950/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
               <tr>
-                {activeTab === 'games' && (
-                  <>
-                    <th className="p-4">Game Code</th>
-                    <th className="p-4">Nama Game</th>
-                    <th className="p-4">User ID Regex</th>
-                    <th className="p-4">Zone ID Regex</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Aksi</th>
-                  </>
-                )}
-                {activeTab === 'providers' && (
-                  <>
-                    <th className="p-4">Provider Code</th>
-                    <th className="p-4">Nama Provider</th>
-                    <th className="p-4">Deskripsi</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Aksi</th>
-                  </>
-                )}
-                {activeTab === 'capabilities' && (
-                  <>
-                    <th className="p-4">Code</th>
-                    <th className="p-4">Nama Kapabilitas</th>
-                    <th className="p-4">Version</th>
-                    <th className="p-4 text-right">Aksi</th>
-                  </>
-                )}
-                {activeTab === 'mappings' && (
-                  <>
-                    <th className="p-4">Game</th>
-                    <th className="p-4">Capability</th>
-                    <th className="p-4">Provider</th>
-                    <th className="p-4">Adapter Key</th>
-                    <th className="p-4">Slug</th>
-                    <th className="p-4">Priority</th>
-                    <th className="p-4 text-right">Aksi</th>
-                  </>
-                )}
+                <th className="px-4 py-3">Details / Name</th>
+                <th className="px-4 py-3">Code / Slug</th>
+                <th className="px-4 py-3">Additional Info</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {loading && data.length === 0 ? (
+            <tbody className="divide-y divide-slate-800/60 font-mono">
+              {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-500">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-400" />
-                    <span>Memuat data master...</span>
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-400" />
+                    Memuat data master...
                   </td>
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-500">
-                    {viewMode === 'trash' ? '🗑️ Tidak ada data di Recycle Bin' : 'Tidak ada data ditemukan.'}
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                    Tidak ada data ditemukan untuk {activeTab} ({viewMode})
                   </td>
                 </tr>
               ) : (
                 filteredData.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
-                    {activeTab === 'games' && (
-                      <>
-                        <td className="p-4 font-mono font-semibold text-blue-400">{item.code}</td>
-                        <td className="p-4 font-medium text-white">{item.name}</td>
-                        <td className="p-4 font-mono text-slate-400">{item.userIdRegex || '-'}</td>
-                        <td className="p-4 font-mono text-slate-400">{item.zoneIdRegex || '-'}</td>
-                        <td className="p-4">
-                          {viewMode === 'trash' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/30">
-                              Soft Deleted
-                            </span>
-                          ) : (
-                            <span className={`px-2 py-0.5 rounded text-[10px] ${item.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                              {item.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          )}
-                        </td>
-                      </>
-                    )}
-
-                    {activeTab === 'providers' && (
-                      <>
-                        <td className="p-4 font-mono font-semibold text-purple-400">{item.code}</td>
-                        <td className="p-4 font-medium text-white">{item.name}</td>
-                        <td className="p-4 text-slate-400">{item.description || '-'}</td>
-                        <td className="p-4">
-                          {viewMode === 'trash' ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-red-500/20 text-red-300 border border-red-500/30">
-                              Soft Deleted
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-400">
-                              {item.status}
-                            </span>
-                          )}
-                        </td>
-                      </>
-                    )}
-
-                    {activeTab === 'capabilities' && (
-                      <>
-                        <td className="p-4 font-mono font-semibold text-amber-400">{item.code}</td>
-                        <td className="p-4 font-medium text-white">{item.name}</td>
-                        <td className="p-4 font-mono text-slate-400">{item.version}</td>
-                      </>
-                    )}
-
-                    {activeTab === 'mappings' && (
-                      <>
-                        <td className="p-4 font-medium text-white">{item.game?.name || item.gameId}</td>
-                        <td className="p-4 font-mono text-amber-400">{item.capability?.code || item.capabilityId}</td>
-                        <td className="p-4 text-slate-300">{item.provider?.name || item.providerId}</td>
-                        <td className="p-4 font-mono text-purple-400">{item.adapterKey}</td>
-                        <td className="p-4 font-mono text-blue-400">{item.slug}</td>
-                        <td className="p-4 font-mono">{item.priority}</td>
-                      </>
-                    )}
-
-                    <td className="p-4 text-right">
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-slate-100 font-sans">
+                        {item.name || item.game?.name || 'Unnamed Record'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono">{item.id}</div>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-blue-400">
+                      {item.code || item.slug || item.adapterKey || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">
+                      {activeTab === 'games' && (
+                        <div>
+                          <span>Fields: {item.inputFields?.fields?.length || 0} fields</span>
+                          {item.userIdRegex && <span className="ml-2 text-[10px] bg-slate-800 px-2 py-0.5 rounded text-amber-300 font-mono">Regex: Yes</span>}
+                        </div>
+                      )}
+                      {activeTab === 'mappings' && (
+                        <div className="text-[11px] space-y-0.5">
+                          <div>Game: <span className="text-slate-200">{item.game?.name || item.gameId}</span></div>
+                          <div>Adapter: <span className="text-purple-400">{item.adapterKey}</span></div>
+                        </div>
+                      )}
+                      {activeTab === 'providers' && item.description}
+                      {activeTab === 'capabilities' && item.description}
+                    </td>
+                    <td className="px-4 py-3 text-right">
                       {viewMode === 'trash' ? (
                         <button
                           onClick={() => handleRestoreData(item.id, item.name || item.code || 'Record')}
@@ -482,8 +498,8 @@ export const MasterDataPage: React.FC = () => {
 
       {/* Create / Edit Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-base font-bold text-white uppercase tracking-wider">
                 {modalMode === 'create' ? `Tambah ${activeTab} Baru` : `Edit ${activeTab}`}
@@ -580,51 +596,207 @@ export const MasterDataPage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Code / Unique Identifier</label>
-                    <input
-                      type="text"
-                      value={formData.code}
-                      onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                      required
-                      placeholder="e.g. free-fire"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Code / Unique Identifier *</label>
+                      <input
+                        type="text"
+                        value={formData.code}
+                        onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                        required
+                        placeholder="e.g. blood-strike"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block text-[11px] text-slate-400 mb-1">Nama</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                      placeholder="e.g. Free Fire"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-                    />
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">Nama Game / Record *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                        placeholder="e.g. Blood Strike"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
+                      />
+                    </div>
                   </div>
 
                   {activeTab === 'games' && (
                     <>
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">User ID Regex Check (Opsional)</label>
-                        <input
-                          type="text"
-                          value={formData.userIdRegex}
-                          onChange={(e) => setFormData({ ...formData, userIdRegex: e.target.value })}
-                          placeholder="e.g. ^[0-9]+$"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-                        />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[11px] text-slate-400 mb-1">User ID Regex Check (Opsional)</label>
+                          <input
+                            type="text"
+                            value={formData.userIdRegex}
+                            onChange={(e) => setFormData({ ...formData, userIdRegex: e.target.value })}
+                            placeholder="e.g. ^[0-9]+$"
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] text-slate-400 mb-1">Zone ID Regex Check (Opsional)</label>
+                          <input
+                            type="text"
+                            value={formData.zoneIdRegex}
+                            onChange={(e) => setFormData({ ...formData, zoneIdRegex: e.target.value })}
+                            placeholder="e.g. ^[0-9]+$"
+                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-[11px] text-slate-400 mb-1">Zone ID Regex Check (Opsional)</label>
-                        <input
-                          type="text"
-                          value={formData.zoneIdRegex}
-                          onChange={(e) => setFormData({ ...formData, zoneIdRegex: e.target.value })}
-                          placeholder="e.g. ^[0-9]+$"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-                        />
+
+                      {/* DYNAMIC INPUT FIELDS BUILDER UI FOR GAMES */}
+                      <div className="pt-4 border-t border-slate-800/80 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <ListPlus className="w-4 h-4 text-blue-400" />
+                            <span>Input Fields Schema Builder (Dynamic Form)</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={addBuilderField}
+                            className="text-xs text-blue-400 hover:text-blue-300 bg-blue-950/60 hover:bg-blue-900/60 px-3 py-1.5 rounded-lg border border-blue-800 transition-colors flex items-center gap-1 font-semibold"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Tambah Field</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {builderFields.map((field, fieldIdx) => (
+                            <div key={fieldIdx} className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 space-y-3 relative">
+                              <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+                                <span className="text-[11px] font-bold text-slate-400">
+                                  Field #{fieldIdx + 1}: <span className="text-blue-400">{field.key || 'unnamed'}</span>
+                                </span>
+                                {builderFields.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeBuilderField(fieldIdx)}
+                                    className="text-slate-500 hover:text-red-400 p-1 rounded transition-colors"
+                                    title="Hapus Field Ini"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                                <div>
+                                  <label className="block text-[10px] text-slate-400 mb-1">Key *</label>
+                                  <input
+                                    type="text"
+                                    value={field.key}
+                                    onChange={(e) => updateBuilderField(fieldIdx, 'key', e.target.value)}
+                                    required
+                                    placeholder="e.g. userId"
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] text-slate-400 mb-1">Label *</label>
+                                  <input
+                                    type="text"
+                                    value={field.label}
+                                    onChange={(e) => updateBuilderField(fieldIdx, 'label', e.target.value)}
+                                    required
+                                    placeholder="e.g. User ID"
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-blue-500"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] text-slate-400 mb-1">Type *</label>
+                                  <select
+                                    value={field.type}
+                                    onChange={(e) => updateBuilderField(fieldIdx, 'type', e.target.value as any)}
+                                    className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
+                                  >
+                                    <option value="text">text (Input Biasa)</option>
+                                    <option value="select">select (Dropdown)</option>
+                                  </select>
+                                </div>
+
+                                <div className="flex items-center pt-4">
+                                  <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={field.required}
+                                      onChange={(e) => updateBuilderField(fieldIdx, 'required', e.target.checked)}
+                                      className="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0"
+                                    />
+                                    <span>Wajib (Required)</span>
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] text-slate-400 mb-1">Placeholder</label>
+                                <input
+                                  type="text"
+                                  value={field.placeholder || ''}
+                                  onChange={(e) => updateBuilderField(fieldIdx, 'placeholder', e.target.value)}
+                                  placeholder="e.g. Masukkan User ID..."
+                                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-blue-500"
+                                />
+                              </div>
+
+                              {/* SUB-SECTION FOR DROPDOWN OPTIONS IF TYPE === SELECT */}
+                              {field.type === 'select' && (
+                                <div className="mt-2 pt-2 border-t border-slate-900 space-y-2 bg-slate-900/60 p-3 rounded-lg border border-slate-800/60">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                                      Opsi Dropdown (Server Options):
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => addOptionToField(fieldIdx)}
+                                      className="text-[10px] text-amber-300 hover:text-amber-200 bg-amber-950/60 px-2 py-1 rounded border border-amber-800 font-medium flex items-center gap-1"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                      <span>Tambah Opsi</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    {field.options?.map((opt, optIdx) => (
+                                      <div key={optIdx} className="flex items-center gap-2 text-xs">
+                                        <input
+                                          type="text"
+                                          value={opt.label}
+                                          onChange={(e) => updateOptionInField(fieldIdx, optIdx, 'label', e.target.value)}
+                                          placeholder="Label (e.g. Asia)"
+                                          required
+                                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-500"
+                                        />
+                                        <input
+                                          type="text"
+                                          value={opt.value}
+                                          onChange={(e) => updateOptionInField(fieldIdx, optIdx, 'value', e.target.value)}
+                                          placeholder="Value (e.g. os_asia)"
+                                          required
+                                          className="flex-1 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                                        />
+                                        {field.options!.length > 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => removeOptionFromField(fieldIdx, optIdx)}
+                                            className="text-slate-500 hover:text-red-400 p-1"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </>
                   )}
@@ -648,16 +820,17 @@ export const MasterDataPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl font-medium"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-xl font-medium transition-colors disabled:opacity-50"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-lg shadow-blue-600/20"
                 >
-                  {loading ? 'Menyimpan...' : 'Simpan Data'}
+                  {loading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{modalMode === 'create' ? 'Simpan Baru' : 'Update Data'}</span>
                 </button>
               </div>
             </form>

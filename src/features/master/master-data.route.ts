@@ -46,12 +46,35 @@ masterRoute.openapi(getGamesRoute, async (c) => {
   return c.json(createSuccessResponse(games, 'Games fetched'), 200);
 });
 
+const inputFieldSchema = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  type: z.enum(['text', 'select']),
+  required: z.boolean().optional().default(false),
+  placeholder: z.string().optional(),
+  options: z
+    .array(
+      z.object({
+        label: z.string().min(1),
+        value: z.string().min(1),
+      })
+    )
+    .optional(),
+});
+
+const inputFieldsSchema = z
+  .object({
+    fields: z.array(inputFieldSchema),
+  })
+  .optional();
+
 const createGameSchema = z.object({
   code: z.string().min(2),
   name: z.string().min(2),
   iconUrl: z.string().optional(),
   userIdRegex: z.string().optional(),
   zoneIdRegex: z.string().optional(),
+  inputFields: inputFieldsSchema,
 });
 
 const postGameRoute = createRoute({
