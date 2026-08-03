@@ -8,6 +8,25 @@ const validationEngine = new ValidationEngineService(prisma);
 
 export const validationRoute = new OpenAPIHono();
 
+// Public Games Catalog Route (Unauthenticated for Playground UI)
+const getPublicGamesRoute = createRoute({
+  method: 'get',
+  path: '/games',
+  summary: 'List Public Games Catalog with Input Schema',
+  tags: ['Public Validation Gateway'],
+  responses: {
+    200: { description: 'Games catalog list with input schema' },
+  },
+});
+
+validationRoute.openapi(getPublicGamesRoute, async (c) => {
+  const games = await prisma.game.findMany({
+    where: { isActive: true, deletedAt: null },
+    orderBy: { name: 'asc' },
+  });
+  return c.json(createSuccessResponse(games, 'Public games fetched'), 200);
+});
+
 const ValidateRequestSchema = z.object({
   gameCode: z.string().min(2).openapi({ example: 'mobile-legends' }),
   userId: z.string().min(1).openapi({ example: '12345678' }),

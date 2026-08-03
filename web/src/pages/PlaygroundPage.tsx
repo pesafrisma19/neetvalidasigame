@@ -6,56 +6,42 @@ import { Play, Copy, Check, Zap, Server, ShieldCheck, RefreshCw, Layers } from '
 export const PlaygroundPage: React.FC = () => {
   const [gamesList, setGamesList] = useState<any[]>([]);
   const [gameCode, setGameCode] = useState('mobile-legends');
-  const [formValues, setFormValues] = useState<Record<string, string>>({
-    userId: '1615278168',
-    zoneId: '16806',
-  });
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetchingGames, setFetchingGames] = useState(true);
   const [result, setResult] = useState<ValidationResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Fetch games list dynamically from Supabase DB
+  // Fetch games list dynamically from public endpoint (No Auth required)
   useEffect(() => {
     async function fetchGames() {
       try {
-        const res = await apiClient.get('/admin/games');
+        const res = await apiClient.get('/public/games');
         if (res.data && res.data.data && res.data.data.length > 0) {
           setGamesList(res.data.data);
           const firstGame = res.data.data[0];
           setGameCode(firstGame.code);
-          initFormDefaults(firstGame);
+          initFormFields(firstGame);
         }
       } catch (err) {
-        // Fallback array if unauthenticated
+        // Fallback array if network error
         const fallback = [
           {
             id: '1',
-            code: 'mobile-legends',
-            name: 'Mobile Legends: Bang Bang',
+            code: 'free-fire',
+            name: 'Free Fire',
             inputFields: {
-              fields: [
-                { key: 'userId', label: 'User ID', type: 'text', required: true },
-                { key: 'zoneId', label: 'Zone ID', type: 'text', required: true },
-              ],
+              fields: [{ key: 'userId', label: 'User ID / Player ID', type: 'text', required: true }],
             },
           },
           {
             id: '2',
-            code: 'free-fire',
-            name: 'Free Fire',
-            inputFields: {
-              fields: [{ key: 'userId', label: 'Player ID', type: 'text', required: true }],
-            },
-          },
-          {
-            id: '3',
             code: 'genshin-impact',
             name: 'Genshin Impact',
             inputFields: {
               fields: [
-                { key: 'userId', label: 'UID', type: 'text', required: true },
+                { key: 'userId', label: 'User ID / UID', type: 'text', required: true },
                 {
                   key: 'zoneId',
                   label: 'Pilih Server',
@@ -71,10 +57,21 @@ export const PlaygroundPage: React.FC = () => {
               ],
             },
           },
+          {
+            id: '3',
+            code: 'mobile-legends',
+            name: 'Mobile Legends: Bang Bang',
+            inputFields: {
+              fields: [
+                { key: 'userId', label: 'User ID', type: 'text', required: true },
+                { key: 'zoneId', label: 'Zone ID', type: 'text', required: true },
+              ],
+            },
+          },
         ];
         setGamesList(fallback);
         setGameCode(fallback[0].code);
-        initFormDefaults(fallback[0]);
+        initFormFields(fallback[0]);
       } finally {
         setFetchingGames(false);
       }
@@ -82,32 +79,22 @@ export const PlaygroundPage: React.FC = () => {
     fetchGames();
   }, []);
 
-  const initFormDefaults = (game: any) => {
+  const initFormFields = (game: any) => {
     if (!game) return;
-
-    if (game.code === 'mobile-legends' || game.code === 'mobile-legends-test') {
-      setFormValues({ userId: '1615278168', zoneId: '16806' });
-    } else if (game.code === 'free-fire') {
-      setFormValues({ userId: '6526829829' });
-    } else if (game.code === 'mcgg') {
-      setFormValues({ userId: '47821', zoneId: '1001' });
-    } else if (game.code === 'genshin-impact') {
-      setFormValues({ userId: '864789196', zoneId: 'os_asia' });
-    } else {
-      const initial: Record<string, string> = {};
-      const fields = game.inputFields?.fields || [];
-      fields.forEach((f: any) => {
-        initial[f.key] = f.type === 'select' ? f.options?.[0]?.value || '' : '';
-      });
-      setFormValues(initial);
-    }
+    const initial: Record<string, string> = {};
+    const fields = game.inputFields?.fields || [];
+    fields.forEach((f: any) => {
+      // Preset default select option if type === 'select', else leave empty for clean user input
+      initial[f.key] = f.type === 'select' ? f.options?.[0]?.value || '' : '';
+    });
+    setFormValues(initial);
   };
 
   const handleGameChange = (code: string) => {
     setGameCode(code);
     const selected = gamesList.find((g) => g.code === code);
     if (selected) {
-      initFormDefaults(selected);
+      initFormFields(selected);
     }
   };
 
@@ -157,7 +144,6 @@ export const PlaygroundPage: React.FC = () => {
   const selectedGame = gamesList.find((g) => g.code === gameCode);
   const activeFields: any[] = selectedGame?.inputFields?.fields || [
     { key: 'userId', label: 'User ID / Player ID', type: 'text', required: true },
-    { key: 'zoneId', label: 'Zone / Server ID (Opsional)', type: 'text', required: false },
   ];
 
   return (
