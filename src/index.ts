@@ -49,6 +49,10 @@ app.doc('/api/v1/openapi.json', () => ({
   },
   servers: [
     {
+      url: 'https://api.neetflix.monster',
+      description: 'Production API Gateway Server (Live)',
+    },
+    {
       url: `http://localhost:${env.PORT}`,
       description: 'Local Development Server',
     },
