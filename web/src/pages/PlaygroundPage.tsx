@@ -6,8 +6,10 @@ import { Play, Copy, Check, Zap, Server, ShieldCheck, RefreshCw, Layers } from '
 export const PlaygroundPage: React.FC = () => {
   const [gamesList, setGamesList] = useState<any[]>([]);
   const [gameCode, setGameCode] = useState('mobile-legends');
-  const [userId, setUserId] = useState('1615278168');
-  const [zoneId, setZoneId] = useState('16806');
+  const [formValues, setFormValues] = useState<Record<string, string>>({
+    userId: '1615278168',
+    zoneId: '16806',
+  });
   const [loading, setLoading] = useState(false);
   const [fetchingGames, setFetchingGames] = useState(true);
   const [result, setResult] = useState<ValidationResponse | null>(null);
@@ -21,21 +23,93 @@ export const PlaygroundPage: React.FC = () => {
         const res = await apiClient.get('/admin/games');
         if (res.data && res.data.data && res.data.data.length > 0) {
           setGamesList(res.data.data);
-          setGameCode(res.data.data[0].code);
+          const firstGame = res.data.data[0];
+          setGameCode(firstGame.code);
+          initFormDefaults(firstGame);
         }
       } catch (err) {
         // Fallback array if unauthenticated
-        setGamesList([
-          { id: '1', code: 'mobile-legends', name: 'Mobile Legends: Bang Bang' },
-          { id: '2', code: 'free-fire', name: 'Free Fire' },
-          { id: '3', code: 'magic-chess-go-go', name: 'Magic Chess Go Go' },
-        ]);
+        const fallback = [
+          {
+            id: '1',
+            code: 'mobile-legends',
+            name: 'Mobile Legends: Bang Bang',
+            inputFields: {
+              fields: [
+                { key: 'userId', label: 'User ID', type: 'text', required: true },
+                { key: 'zoneId', label: 'Zone ID', type: 'text', required: true },
+              ],
+            },
+          },
+          {
+            id: '2',
+            code: 'free-fire',
+            name: 'Free Fire',
+            inputFields: {
+              fields: [{ key: 'userId', label: 'Player ID', type: 'text', required: true }],
+            },
+          },
+          {
+            id: '3',
+            code: 'genshin-impact',
+            name: 'Genshin Impact',
+            inputFields: {
+              fields: [
+                { key: 'userId', label: 'UID', type: 'text', required: true },
+                {
+                  key: 'zoneId',
+                  label: 'Pilih Server',
+                  type: 'select',
+                  required: true,
+                  options: [
+                    { value: 'os_asia', label: 'Asia' },
+                    { value: 'os_usa', label: 'America' },
+                    { value: 'os_euro', label: 'Europe' },
+                    { value: 'os_cht', label: 'TW/HK/MO' },
+                  ],
+                },
+              ],
+            },
+          },
+        ];
+        setGamesList(fallback);
+        setGameCode(fallback[0].code);
+        initFormDefaults(fallback[0]);
       } finally {
         setFetchingGames(false);
       }
     }
     fetchGames();
   }, []);
+
+  const initFormDefaults = (game: any) => {
+    if (!game) return;
+
+    if (game.code === 'mobile-legends' || game.code === 'mobile-legends-test') {
+      setFormValues({ userId: '1615278168', zoneId: '16806' });
+    } else if (game.code === 'free-fire') {
+      setFormValues({ userId: '6526829829' });
+    } else if (game.code === 'mcgg') {
+      setFormValues({ userId: '47821', zoneId: '1001' });
+    } else if (game.code === 'genshin-impact') {
+      setFormValues({ userId: '864789196', zoneId: 'os_asia' });
+    } else {
+      const initial: Record<string, string> = {};
+      const fields = game.inputFields?.fields || [];
+      fields.forEach((f: any) => {
+        initial[f.key] = f.type === 'select' ? f.options?.[0]?.value || '' : '';
+      });
+      setFormValues(initial);
+    }
+  };
+
+  const handleGameChange = (code: string) => {
+    setGameCode(code);
+    const selected = gamesList.find((g) => g.code === code);
+    if (selected) {
+      initFormDefaults(selected);
+    }
+  };
 
   const handleValidate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -46,8 +120,8 @@ export const PlaygroundPage: React.FC = () => {
     try {
       const res = await apiClient.post('/public/validate-account', {
         gameCode,
-        userId,
-        zoneId: zoneId || undefined,
+        userId: formValues.userId,
+        zoneId: formValues.zoneId || undefined,
       });
 
       if (res.data && res.data.success) {
@@ -79,6 +153,12 @@ export const PlaygroundPage: React.FC = () => {
       setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const selectedGame = gamesList.find((g) => g.code === gameCode);
+  const activeFields: any[] = selectedGame?.inputFields?.fields || [
+    { key: 'userId', label: 'User ID / Player ID', type: 'text', required: true },
+    { key: 'zoneId', label: 'Zone / Server ID (Opsional)', type: 'text', required: false },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -114,8 +194,8 @@ export const PlaygroundPage: React.FC = () => {
                 </label>
                 <select
                   value={gameCode}
-                  onChange={(e) => setGameCode(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
+                  onChange={(e) => handleGameChange(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
                 >
                   {gamesList.map((g) => (
                     <option key={g.id || g.code} value={g.code}>
@@ -125,27 +205,36 @@ export const PlaygroundPage: React.FC = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">User ID / Player ID</label>
-                <input
-                  type="text"
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  placeholder="Masukkan User ID..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+              {/* Dynamic Input Fields Rendered Per Game */}
+              {activeFields.map((field: any) => (
+                <div key={field.key}>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                    {field.label} {field.required && <span className="text-red-400">*</span>}
+                  </label>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Zone / Server ID (Opsional jika tidak ada)</label>
-                <input
-                  type="text"
-                  value={zoneId}
-                  onChange={(e) => setZoneId(e.target.value)}
-                  placeholder="Kosongkan jika game tidak pakai Zone ID..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500"
-                />
-              </div>
+                  {field.type === 'select' ? (
+                    <select
+                      value={formValues[field.key] || ''}
+                      onChange={(e) => setFormValues({ ...formValues, [field.key]: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-medium"
+                    >
+                      {field.options?.map((opt: any) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label} ({opt.value})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formValues[field.key] || ''}
+                      onChange={(e) => setFormValues({ ...formValues, [field.key]: e.target.value })}
+                      placeholder={field.placeholder || `Masukkan ${field.label}...`}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                    />
+                  )}
+                </div>
+              ))}
 
               <button
                 type="submit"
@@ -159,8 +248,8 @@ export const PlaygroundPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 fill-white" />
-                    <span>Validate Account</span>
+                    <Zap className="w-4 h-4 fill-white" />
+                    <span>Jalankan Validasi</span>
                   </>
                 )}
               </button>
@@ -168,136 +257,128 @@ export const PlaygroundPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Panel Kanan: Capabilities Result Card */}
+        {/* Panel Kanan: Hasil Response JSON & Card Display */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 min-h-[380px] flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-                <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  Extracted Capabilities Result
-                </h3>
-                {result && (
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1 text-emerald-400 font-mono">
-                      <Zap className="w-3.5 h-3.5" />
-                      {result.meta.responseTimeMs} ms
+          {errorMsg && (
+            <div className="bg-red-950/40 border border-red-800/80 rounded-2xl p-4 text-xs text-red-300 font-mono shadow-xl">
+              ❌ Error: {errorMsg}
+            </div>
+          )}
+
+          {result && (
+            <div className="space-y-6">
+              {/* Stat Card Header */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    <span className="text-sm font-bold text-white uppercase tracking-wider">Hasil Validasi Gateway</span>
+                  </div>
+                  <div className="text-xs font-mono text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-800">
+                    ⏱️ {result.meta.responseTimeMs} ms
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                  <div>
+                    <span className="text-slate-500 block">Game</span>
+                    <span className="font-semibold text-slate-200 font-mono">{result.gameCode}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block">User ID</span>
+                    <span className="font-semibold text-slate-200 font-mono">{result.userId}</span>
+                  </div>
+                  {result.zoneId && (
+                    <div>
+                      <span className="text-slate-500 block">Zone / Server</span>
+                      <span className="font-semibold text-slate-200 font-mono">{result.zoneId}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-500 block">Providers Used</span>
+                    <span className="font-semibold text-purple-400 font-mono">
+                      {result.meta.providersUsed.join(', ') || 'N/A'}
                     </span>
                   </div>
-                )}
-              </div>
-
-              {errorMsg && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm mb-4">
-                  ❌ {errorMsg}
                 </div>
-              )}
 
-              {!result && !errorMsg && !loading && (
-                <div className="text-center py-16 text-slate-500 space-y-2">
-                  <Layers className="w-10 h-10 mx-auto stroke-1" />
-                  <p className="text-sm">Klik tombol "Validate Account" untuk menguji validasi.</p>
-                </div>
-              )}
+                {/* Capabilities Badges */}
+                <div className="pt-2 border-t border-slate-800/60 space-y-2">
+                  <span className="text-[11px] text-slate-400 font-semibold block uppercase tracking-wider">
+                    Extracted Capabilities:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {result.capabilities.nickname && (
+                      <div className="bg-blue-950/60 border border-blue-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                        <span className="text-slate-400">Nickname:</span>
+                        <span className="font-bold text-blue-300 font-mono">{String(result.capabilities.nickname)}</span>
+                      </div>
+                    )}
 
-              {loading && (
-                <div className="text-center py-16 text-slate-400 space-y-3">
-                  <RefreshCw className="w-8 h-8 mx-auto animate-spin text-blue-400" />
-                  <p className="text-sm">Menghubungkan ke Provider Validation Engine...</p>
-                </div>
-              )}
+                    {result.capabilities.region && (
+                      <div className="bg-amber-950/60 border border-amber-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                        <span className="text-slate-400">Region:</span>
+                        <span className="font-bold text-amber-300 font-mono">{String(result.capabilities.region)}</span>
+                      </div>
+                    )}
 
-              {result && (
-                <div className="space-y-6">
-                  {/* Primary Cards: Nickname & Region */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl">
-                      <span className="text-xs text-slate-400">Player Nickname</span>
-                      <p className="text-lg font-bold text-white mt-1">
-                        {result.capabilities.nickname || '-'}
-                      </p>
-                    </div>
-                    <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl">
-                      <span className="text-xs text-slate-400">Region</span>
-                      <p className="text-lg font-bold text-emerald-400 mt-1">
-                        {result.capabilities.region || '-'}
-                      </p>
-                    </div>
+                    {result.capabilities.firstTopupAvailable !== undefined && (
+                      <div className="bg-purple-950/60 border border-purple-800 px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5">
+                        <span className="text-slate-400">First Topup Bonus:</span>
+                        <span className={`font-bold font-mono ${result.capabilities.firstTopupAvailable ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {result.capabilities.firstTopupAvailable ? 'AVAILABLE ✅' : 'USED ❌'}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* First Topup 4 Tiers Grid (Only rendered if returned by API) */}
-                  {result.capabilities.firstTopupTiers && (
-                    <div className="space-y-2">
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        Diamond Ganda Top Up Pertama (MobaPay Event Tiers)
+                  {/* First Topup Tiers Table */}
+                  {Array.isArray(result.capabilities.firstTopupTiers) && result.capabilities.firstTopupTiers.length > 0 && (
+                    <div className="mt-3 bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-2">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
+                        Double Diamond Tier Status:
                       </span>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {result.capabilities.firstTopupTiers.map((tier: any, idx: number) => (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {result.capabilities.firstTopupTiers.map((t: any) => (
                           <div
-                            key={idx}
-                            className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-                              tier.available
-                                ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-300'
-                                : 'bg-slate-950/60 border-slate-800 text-slate-400'
+                            key={t.id || t.name}
+                            className={`p-2 rounded-lg border text-[11px] font-mono text-center ${
+                              t.available
+                                ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-300'
+                                : 'bg-slate-900 border-slate-800 text-slate-500'
                             }`}
                           >
-                            <div>
-                              <p className="font-semibold text-white">{tier.name}</p>
-                              {tier.price > 0 && (
-                                <p className="text-[11px] text-slate-400">
-                                  Rp {(tier.price / 100).toLocaleString('id-ID')}
-                                </p>
-                              )}
-                            </div>
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                tier.available ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-500'
-                              }`}
-                            >
-                              {tier.statusText}
-                            </span>
+                            <div className="font-bold">{t.name}</div>
+                            <div className="text-[9px] mt-0.5">{t.statusText}</div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {/* Provider Badges */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-xs">
-                    <span className="text-slate-400">Providers Konsolidasi:</span>
-                    <div className="flex gap-2">
-                      {result.meta.providersUsed.map((p, i) => (
-                        <span key={i} className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg border border-slate-700 font-medium">
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Terminal Code Response Viewer */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Live Response Terminal (JSON)</span>
-              {result && (
-                <button
-                  onClick={handleCopyJson}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
-                </button>
-              )}
+              {/* JSON Response View Drawer */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                    <Layers className="w-4 h-4 text-blue-400" />
+                    <span>Raw Response JSON Envelope</span>
+                  </div>
+                  <button
+                    onClick={handleCopyJson}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
+                  </button>
+                </div>
+                <pre className="bg-slate-950 p-4 rounded-xl text-xs font-mono text-blue-300 overflow-x-auto border border-slate-800/80 max-h-96">
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </div>
             </div>
-
-            <pre className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-xs font-mono text-emerald-400 overflow-x-auto max-h-80">
-              {result ? JSON.stringify(result, null, 2) : '// Terminal ready. Output JSON live akan muncul di sini...'}
-            </pre>
-          </div>
+          )}
         </div>
       </div>
     </div>

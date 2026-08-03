@@ -92,6 +92,7 @@ model Game {
   iconUrl      String?  @map("icon_url")
   userIdRegex  String?  @map("user_id_regex")
   zoneIdRegex  String?  @map("zone_id_regex")
+  inputFields  Json?    @map("input_fields")
   isActive     Boolean  @default(true) @map("is_active")
   createdBy    String?  @map("created_by")
   updatedBy    String?  @map("updated_by")
