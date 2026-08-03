@@ -248,7 +248,7 @@ export const MasterDataPage: React.FC = () => {
           code: formData.code,
           name: formData.name,
           userIdRegex: formData.userIdRegex || undefined,
-          zoneIdRegex: formData.zoneIdRegex || undefined,
+          zoneIdRegex: slot2Mode === 'text' ? (formData.zoneIdRegex || undefined) : undefined,
           inputFields: { fields },
         };
       } else if (activeTab === 'mappings') {
@@ -670,16 +670,18 @@ export const MasterDataPage: React.FC = () => {
                             className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                           />
                         </div>
-                        <div>
-                          <label className="block text-[11px] text-slate-400 mb-1">Zone ID Regex Check (Opsional)</label>
-                          <input
-                            type="text"
-                            value={formData.zoneIdRegex}
-                            onChange={(e) => setFormData({ ...formData, zoneIdRegex: e.target.value })}
-                            placeholder="e.g. ^[0-9]+$"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-                          />
-                        </div>
+                        {slot2Mode === 'text' && (
+                          <div>
+                            <label className="block text-[11px] text-slate-400 mb-1">Zone ID Regex Check (Opsional)</label>
+                            <input
+                              type="text"
+                              value={formData.zoneIdRegex}
+                              onChange={(e) => setFormData({ ...formData, zoneIdRegex: e.target.value })}
+                              placeholder="e.g. ^[0-9]+$"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* FIXED 2-SLOT FIELD BUILDER UI FOR GAMES */}
