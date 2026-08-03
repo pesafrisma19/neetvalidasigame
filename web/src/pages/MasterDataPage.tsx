@@ -56,6 +56,12 @@ export const MasterDataPage: React.FC = () => {
     { label: 'America (LATAM)', value: 'latam' },
   ]);
 
+  // Mapping Config State for GameValidationMapping
+  const [userIdParamKey, setUserIdParamKey] = useState('userId');
+  const [zoneIdParamKey, setZoneIdParamKey] = useState('zoneId');
+  const [nicknameResponsePath, setNicknameResponsePath] = useState('data.username');
+  const [regionResponsePath, setRegionResponsePath] = useState('data.countryOrigin');
+
   const fetchMasterData = async () => {
     const token = localStorage.getItem('admin_token');
     if (!token) {
@@ -133,6 +139,12 @@ export const MasterDataPage: React.FC = () => {
       { label: 'Asia (SEA)', value: 'sea' },
       { label: 'America (LATAM)', value: 'latam' },
     ]);
+
+    setUserIdParamKey('userId');
+    setZoneIdParamKey('zoneId');
+    setNicknameResponsePath('data.username');
+    setRegionResponsePath('data.countryOrigin');
+
     setIsModalOpen(true);
   };
 
@@ -153,6 +165,19 @@ export const MasterDataPage: React.FC = () => {
       adapterKey: item.adapterKey || 'GOPAY_ADAPTER',
       priority: item.priority || 1,
     });
+
+    // Populate Mapping Config State if editing a GameValidationMapping
+    if (activeTab === 'mappings' || item.adapterKey || item.requestParamMapping) {
+      const reqMap = item.requestParamMapping || {};
+      const resMap = item.responseFieldMapping || {};
+      const isMelpa = item.adapterKey === 'MELPA_ADAPTER';
+      const isSuperSus = item.adapterKey === 'SUPERSUS_ADAPTER';
+
+      setUserIdParamKey(reqMap.userId || (isMelpa ? 'id' : 'userId'));
+      setZoneIdParamKey(reqMap.zoneId || (isMelpa ? 'zone' : 'zoneId'));
+      setNicknameResponsePath(resMap.nickname || (isSuperSus ? 'data.name' : 'data.username'));
+      setRegionResponsePath(resMap.region || (isMelpa ? 'data.region' : 'data.countryOrigin'));
+    }
 
     // Populate Slot 1 & Slot 2 state from existing inputFields
     const fields = item.inputFields?.fields;
@@ -273,8 +298,14 @@ export const MasterDataPage: React.FC = () => {
           slug: formData.slug,
           adapterKey: formData.adapterKey,
           priority: Number(formData.priority) || 1,
-          requestParamMapping: { userId: 'userId', zoneId: 'zoneId' },
-          responseFieldMapping: { nickname: 'data.username', region: 'data.countryOrigin' },
+          requestParamMapping: {
+            userId: userIdParamKey.trim() || 'userId',
+            zoneId: zoneIdParamKey.trim() || 'zoneId',
+          },
+          responseFieldMapping: {
+            nickname: nicknameResponsePath.trim() || 'data.username',
+            region: regionResponsePath.trim() || undefined,
+          },
         };
       }
 
@@ -512,9 +543,12 @@ export const MasterDataPage: React.FC = () => {
                           </div>
                         )}
                         {activeTab === 'mappings' && (
-                          <div className="text-[11px] space-y-0.5">
-                            <div>Game: <span className="text-slate-200">{item.game?.name || item.gameId}</span></div>
-                            <div>Adapter: <span className="text-purple-400">{item.adapterKey}</span></div>
+                          <div className="text-[11px] space-y-0.5 font-mono">
+                            <div>Game: <span className="text-slate-200 font-sans font-semibold">{item.game?.name || item.gameId}</span></div>
+                            <div>Adapter: <span className="text-purple-400 font-bold">{item.adapterKey}</span></div>
+                            <div className="text-[10px] text-slate-500">
+                              Params: <span className="text-blue-300">id={item.requestParamMapping?.userId || 'userId'}, zone={item.requestParamMapping?.zoneId || 'zoneId'}</span>
+                            </div>
                           </div>
                         )}
                         {activeTab === 'providers' && item.description}
@@ -654,6 +688,67 @@ export const MasterDataPage: React.FC = () => {
                       min={1}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
                     />
+                  </div>
+
+                  {/* DYNAMIC SECTION 1: REQUEST PARAMETER MAPPING */}
+                  <div className="pt-3 border-t border-slate-800 space-y-2">
+                    <label className="text-xs font-bold text-blue-400 uppercase tracking-wider block">
+                      Request Parameter Mapping (Key Outgoing Query/Body)
+                    </label>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">User ID Param Key *</label>
+                        <input
+                          type="text"
+                          value={userIdParamKey}
+                          onChange={(e) => setUserIdParamKey(e.target.value)}
+                          required
+                          placeholder="e.g. id (Melpa) / userId (GoPay)"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Zone ID Param Key *</label>
+                        <input
+                          type="text"
+                          value={zoneIdParamKey}
+                          onChange={(e) => setZoneIdParamKey(e.target.value)}
+                          required
+                          placeholder="e.g. zone (Melpa) / zoneId (GoPay)"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DYNAMIC SECTION 2: RESPONSE FIELD MAPPING */}
+                  <div className="pt-3 border-t border-slate-800 space-y-2">
+                    <label className="text-xs font-bold text-amber-400 uppercase tracking-wider block">
+                      Response Field Mapping (JSON Path Extraction)
+                    </label>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Nickname Path *</label>
+                        <input
+                          type="text"
+                          value={nicknameResponsePath}
+                          onChange={(e) => setNicknameResponsePath(e.target.value)}
+                          required
+                          placeholder="e.g. data.username / data.name"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Region Path (Opsional)</label>
+                        <input
+                          type="text"
+                          value={regionResponsePath}
+                          onChange={(e) => setRegionResponsePath(e.target.value)}
+                          placeholder="e.g. data.countryOrigin / data.region"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
