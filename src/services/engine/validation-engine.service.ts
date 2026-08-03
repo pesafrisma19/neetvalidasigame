@@ -3,6 +3,7 @@ import type { BaseProviderAdapter, ValidationContext, NormalizedResult } from '.
 import { GopayAdapter } from '../../plugins/gopay.adapter.js';
 import { MelpaAdapter } from '../../plugins/melpa.adapter.js';
 import { MobapayAdapter } from '../../plugins/mobapay.adapter.js';
+import { SupersusAdapter } from '../../plugins/supersus.adapter.js';
 import { logger } from '../../utils/logger.js';
 
 export interface ValidateAccountRequest {
@@ -37,6 +38,7 @@ export class ValidationEngineService {
     this.registerAdapter(new GopayAdapter());
     this.registerAdapter(new MelpaAdapter());
     this.registerAdapter(new MobapayAdapter());
+    this.registerAdapter(new SupersusAdapter());
   }
 
   registerAdapter(adapter: BaseProviderAdapter) {

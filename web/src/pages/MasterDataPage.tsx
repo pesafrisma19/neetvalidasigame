@@ -602,6 +602,7 @@ export const MasterDataPage: React.FC = () => {
                       <option value="GOPAY_ADAPTER">GOPAY_ADAPTER (GoPay Games)</option>
                       <option value="MOBAPAY_ADAPTER">MOBAPAY_ADAPTER (MobaPay App Shop)</option>
                       <option value="MELPA_ADAPTER">MELPA_ADAPTER (Melpa Digital)</option>
+                      <option value="SUPERSUS_ADAPTER">SUPERSUS_ADAPTER (Super Sus WebPay API)</option>
                     </select>
                   </div>
 
