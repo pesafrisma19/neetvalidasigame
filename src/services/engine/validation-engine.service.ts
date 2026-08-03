@@ -128,8 +128,8 @@ export class ValidationEngineService {
           continue;
         }
 
-        // Hard Max Timeout Enforcement (Max 2000ms / 2s per provider call)
-        const effectiveTimeout = Math.min(endpoint.timeoutMs || 2000, 2000);
+        // Provider Timeout Enforcement (endpoint timeoutMs or default 5000ms)
+        const effectiveTimeout = endpoint.timeoutMs || 5000;
 
         const ctx: ValidationContext = {
           gameCode: game.code,
