@@ -124,6 +124,35 @@ export interface ValidateAccountResult {
           continue;
         }
 
+        // Atomic Single-Probe Claim for HALF_OPEN State
+        let isProbeRequest = false;
+        if (endpoint.circuitState === 'HALF_OPEN') {
+          const claimProbe = await this.prisma.providerEndpoint.updateMany({
+            where: {
+              id: endpoint.id,
+              circuitState: 'HALF_OPEN',
+            },
+            data: {
+              circuitState: 'OPEN', // Lock temporarily so concurrent requests skip it!
+              circuitOpenUntil: new Date(Date.now() + 30 * 1000), // 30s probe lock
+            },
+          });
+
+          if (claimProbe.count === 0) {
+            logger.info(
+              { endpointId: endpoint.id, provider: provider.name },
+              'Probing already claimed by another concurrent request, skipping to candidate fallback'
+            );
+            continue;
+          }
+
+          isProbeRequest = true;
+          logger.info(
+            { endpointId: endpoint.id, provider: provider.name },
+            '⚡ Claimed single-probe slot for HALF_OPEN endpoint'
+          );
+        }
+
         const adapter = this.adapters.get(mapping.adapterKey);
         if (!adapter) {
           logger.error({ adapterKey: mapping.adapterKey }, 'Adapter plugin not found');
@@ -152,7 +181,7 @@ export interface ValidateAccountResult {
         });
 
         try {
-          // Promise.race between adapter execution and hard 2s timeout
+          // Promise.race between adapter execution and hard timeout
           const result = await Promise.race([adapter.execute(ctx), timeoutPromise]);
           if (timeoutTimer) clearTimeout(timeoutTimer);
 
@@ -176,6 +205,20 @@ export interface ValidateAccountResult {
             normalizedResponse: result,
             clientIp: req.clientIp,
           }).catch((err) => logger.error({ err }, 'Failed async success validation logging'));
+
+          // Reset Circuit Breaker to CLOSED on successful validation
+          if (endpoint.circuitState !== 'CLOSED' || endpoint.consecutiveErrors > 0 || isProbeRequest) {
+            this.prisma.providerEndpoint
+              .update({
+                where: { id: endpoint.id },
+                data: {
+                  circuitState: 'CLOSED',
+                  consecutiveErrors: 0,
+                  circuitOpenUntil: null,
+                },
+              })
+              .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker reset on success'));
+          }
 
           // Break fallback loop for this capability on success
           break;
@@ -201,20 +244,20 @@ export interface ValidateAccountResult {
             clientIp: req.clientIp,
           }).catch((logErr) => logger.error({ logErr }, 'Failed async fallback validation logging'));
 
-          // Circuit Breaker counter increment (Non-blocking async DB update)
+          // Circuit Breaker counter increment and re-trip logic
           const newErrors = endpoint.consecutiveErrors + 1;
-          const shouldOpen = newErrors >= 5;
+          const shouldOpen = isProbeRequest || newErrors >= 5;
 
           this.prisma.providerEndpoint
             .update({
               where: { id: endpoint.id },
               data: {
-                consecutiveErrors: newErrors,
+                consecutiveErrors: shouldOpen ? 5 : newErrors,
                 circuitState: shouldOpen ? 'OPEN' : endpoint.circuitState,
                 circuitOpenUntil: shouldOpen ? new Date(Date.now() + 5 * 60 * 1000) : endpoint.circuitOpenUntil,
               },
             })
-            .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker update'));
+            .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker update on failure'));
         }
       }
 

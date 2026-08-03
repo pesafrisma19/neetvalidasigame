@@ -9,6 +9,7 @@ import { healthRoute } from './features/health/health.route.js';
 import { authRoute } from './features/auth/auth.route.js';
 import { masterRoute } from './features/master/master-data.route.js';
 import { validationRoute } from './features/validation/validation.route.js';
+import { startCircuitBreakerJob } from './jobs/circuit-breaker-recovery.job.js';
 
 const app = new OpenAPIHono();
 
@@ -26,7 +27,7 @@ app.use(
       return allowedOrigins[0] || 'http://localhost:5173';
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-API-KEY'],
   })
 );
 
@@ -74,7 +75,7 @@ app.doc('/api/v1/openapi.json', () => ({
   },
 }));
 
-// Configure Interactive API Reference UI (Scalar)
+// Mount Scalar Interactive OpenAPI Documentation UI
 app.get(
   '/api/v1/docs',
   apiReference({
@@ -97,6 +98,9 @@ serve(
     logger.info(`📚 Scalar API Documentation available at http://localhost:${info.port}/api/v1/docs`);
     logger.info(`🏥 Health Check available at http://localhost:${info.port}/api/v1/public/health`);
     logger.info(`⚡ Public Validation Gateway at http://localhost:${info.port}/api/v1/public/validate-account`);
+
+    // Start Circuit Breaker Auto-Recovery Background Worker
+    startCircuitBreakerJob();
   }
 );
 
