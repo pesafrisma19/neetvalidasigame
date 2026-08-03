@@ -32,16 +32,16 @@ validationRoute.openapi(getPublicGamesRoute, async (c) => {
 });
 
 const ValidateRequestSchema = z.object({
-  gameCode: z.string().min(2).openapi({ description: 'Unique game identifier code (from GET /public/games)', example: 'example-single-slot' }),
+  gameCode: z.string().min(2).openapi({ description: 'Unique game identifier code (retrieve active codes via GET /public/games)', example: 'free-fire' }),
   userId: z.string().min(1).openapi({ description: 'Player User ID / Role ID / Account ID', example: '12345678' }),
-  zoneId: z.string().optional().openapi({ description: 'Server ID / Zone ID (required only if game uses 2-slot format)', example: '1234' }),
+  zoneId: z.string().optional().openapi({ description: 'Server ID / Zone ID (required only if game uses 2-slot format in GET /public/games)', example: '1234' }),
 });
 
 const ValidateResponseSchema = z.object({
   success: z.boolean().openapi({ example: true }),
   message: z.string().openapi({ example: 'Account capability check completed' }),
   data: z.object({
-    gameCode: z.string().openapi({ example: 'example-single-slot' }),
+    gameCode: z.string().openapi({ example: 'free-fire' }),
     userId: z.string().openapi({ example: '12345678' }),
     zoneId: z.string().optional().openapi({ example: '1234' }),
     capabilities: z.object({
@@ -74,17 +74,17 @@ const postValidateAccountRoute = createRoute({
           examples: {
             'single-slot-pattern': {
               summary: '1-Slot Pattern (User ID Only)',
-              description: 'Example pattern for games requiring only a User ID / Account ID (e.g. Free Fire, Blood Strike, HOK, Super Sus, PUBGM).',
+              description: 'Pattern for games requiring only a User ID (e.g. free-fire, hok, blood-strike, pubgm, super-sus). Replace gameCode with any active 1-slot gameCode from GET /public/games.',
               value: {
-                gameCode: 'example-single-slot',
+                gameCode: 'free-fire',
                 userId: '12345678',
               },
             },
             'dual-slot-pattern': {
               summary: '2-Slot Pattern (User ID + Zone ID)',
-              description: 'Example pattern for games requiring both User ID and Server/Zone ID (e.g. Mobile Legends, Eggy Party, Genshin Impact, Honkai Star Rail).',
+              description: 'Pattern for games requiring both User ID and Server/Zone ID (e.g. mobile-legends, eggyparty, genshin-impact, honkai-star-rail). Replace gameCode with any active 2-slot gameCode from GET /public/games.',
               value: {
-                gameCode: 'example-dual-slot',
+                gameCode: 'mobile-legends',
                 userId: '12345678',
                 zoneId: '1234',
               },
