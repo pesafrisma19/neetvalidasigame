@@ -82,7 +82,6 @@ validationRoute.openapi(postValidateAccountRoute, async (c) => {
       clientIp,
     });
 
-    // Strip internal provider code from public output for Provider Agnostic security
     return c.json(
       createSuccessResponse(
         {
@@ -92,7 +91,10 @@ validationRoute.openapi(postValidateAccountRoute, async (c) => {
           capabilities: result.capabilities,
         },
         'Validation successful',
-        { responseTimeMs: result.meta.responseTimeMs }
+        {
+          responseTimeMs: result.meta.responseTimeMs,
+          providersUsed: result.meta.providersUsed,
+        }
       ),
       200
     );
