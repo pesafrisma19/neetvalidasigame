@@ -43,10 +43,11 @@ Phase 6: Multi-Game Expansion ⏳
 - React 19 + Vite + TypeScript + Tailwind CSS.
 - Validation Playground UI, Admin Auth, Dashboard Metrics, Master Data Management.
 
-### Phase 2.5 — Production Deployment & Hardening (LANGKAH BERIKUTNYA ⏳)
+### Phase 2.5 — Production Deployment & Hardening (BERJALAN / SEBAGIAN SELESAI ✅)
 - Frontend Deployment: Vercel CDN (`https://validation-dashboard.vercel.app`).
 - Backend Deployment: VPS Ubuntu Server with Node.js 22, PM2, Nginx Reverse Proxy, Let's Encrypt SSL, Environment Secrets.
-- System Hardening: Production CORS Policy, Rate Limits, Health Checks.
+- System Hardening: Production CORS Policy, X-API-KEY Enforcement, Fatal JWT Startup Abort, Circuit Breaker Auto-Recovery Job.
+- **Progress Log Terperinci:** Lihat [`docs/08-progress-log.md`](file:///d:/project%20web/neetvalidasigame/docs/08-progress-log.md) untuk riwayat commit & TODO list.
 
 ### Phase 3 — History & Audit Logs (DITUNDA ⏳)
 - Transaction Audit Log Schema, Provider Latency & Error Trace.
