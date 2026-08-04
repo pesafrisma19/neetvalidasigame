@@ -26,13 +26,18 @@ Dokumen ini mencatat riwayat kemajuan implementasi (*progress log*) serta daftar
   - Dilengkapi mekanisme self-pruning background interval 10 menit untuk kebersihan RAM.
 - **[DONE] Reset Password Database Supabase** (Tugas Manual User - Commit `b122542`)
   - User telah melakukan reset password database di Dashboard Supabase untuk mengamankan kredensial yang pernah ter-commit di history lama.
-- **[DONE] Admin UI & Backend APIs for API Key Management**
+- **[DONE] Admin UI & Backend APIs for API Key Management** (Commit `fe13ab6`)
   - Menambahkan REST API Endpoints terproteksi JWT Admin di `src/features/master/master-data.route.ts` (`POST /admin/api-keys`, `GET /admin/api-keys`, `PUT /admin/api-keys/:id`, `DELETE /admin/api-keys/:id`, `POST /admin/restore/api-keys/:id`, `GET /admin/trash/api-keys`).
   - `POST /admin/api-keys` me-return `rawKey` **HANYA 1 KALI**, sedangkan list GET menyembunyikan raw key & key hash.
   - Menambahkan halaman Frontend Admin `web/src/pages/ApiKeyPage.tsx` lengkap dengan Modal Form Rilis Key Baru, Tab Aktif/Revoked (Trash), dan Modal Pop-up Kritis Penyimpanan Raw Key One-Time Display (dengan tombol Copy Key).
+- **[DONE] Admin Log Viewer dengan Paginasi, Filter & API Key Binding**
+  - Menambahkan `apiKeyId` ke skema `ValidationLog` & composite indexing di `prisma/schema.prisma` (migrasi DB `npx prisma db push` berhasil disinkronisasi ke PostgreSQL Supabase).
+  - Menambahkan REST API Endpoint `GET /admin/logs` terproteksi JWT Admin dengan paginasi (`page`, `limit`), filter status, partner (termasuk legacy log option), game, provider, date range, dan search.
+  - Menghubungkan `apiKeyId` dari Hono context (`c.get('apiKey')`) ke `validateAccount()` dan `logValidation()`.
+  - Menambahkan halaman Frontend Admin `web/src/pages/LogViewerPage.tsx` lengkap dengan Filter Bar, Pagination, dan Log Inspector JSON Modal.
 
 ---
 
 ### ⏳ TUGAS MENDATANG (TODO):
 - **[TODO] Deployment Ke VPS Ubuntu & Vercel CDN**  
-  Deploy ketiga perbaikan keamanan & fitur baru ini secara bersamaan ke VPS production (`git pull && npm run build && pm2 restart validation-api --update-env`).
+  Deploy seluruh perbaikan ke VPS production (`git pull && npx prisma generate && npm run build && pm2 restart validation-api --update-env`). Catatan: `npx prisma generate` wajib dijalankan di VPS agar Prisma Client mengenali kolom `apiKeyId`.

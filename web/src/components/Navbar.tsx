@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, LogOut, User, Menu, X } from 'lucide-react';
+import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, ScrollText, LogOut, User, Menu, X } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -50,10 +50,16 @@ export const Navbar: React.FC = () => {
             Master Data
           </Link>
           {token && (
-            <Link to="/api-keys" className={navItemClass('/api-keys')}>
-              <Key className="w-4 h-4" />
-              API Keys
-            </Link>
+            <>
+              <Link to="/api-keys" className={navItemClass('/api-keys')}>
+                <Key className="w-4 h-4" />
+                API Keys
+              </Link>
+              <Link to="/logs" className={navItemClass('/logs')}>
+                <ScrollText className="w-4 h-4" />
+                Log Viewer
+              </Link>
+            </>
           )}
 
           {token ? (

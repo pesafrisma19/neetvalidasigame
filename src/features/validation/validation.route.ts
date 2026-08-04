@@ -130,10 +130,12 @@ validationRoute.openapi(postValidateAccountRoute, async (c) => {
   try {
     const body = c.req.valid('json');
     const clientIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || '127.0.0.1';
+    const apiKeyRecord = (c as any).get('apiKey');
 
     const result = await validationEngine.validateAccount({
       ...body,
       clientIp,
+      apiKeyId: apiKeyRecord?.id,
     });
 
     return c.json(

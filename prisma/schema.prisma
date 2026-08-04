@@ -315,29 +315,33 @@ model PlaygroundHistory {
 // 10. LOGGING, SNAPSHOTS & IMMUTABLE AUDIT TRAIL
 // ------------------------------------------------------
 model ValidationLog {
-  id                 String           @id @default(uuid())
-  gameId             String?          @map("game_id")
-  providerId         String?          @map("provider_id")
-  endpointId         String?          @map("endpoint_id")
-  inputUserId        String           @map("input_user_id")
-  inputZoneId        String?          @map("input_zone_id")
+  id                 String            @id @default(uuid())
+  apiKeyId           String?           @map("api_key_id")
+  gameId             String?           @map("game_id")
+  providerId         String?           @map("provider_id")
+  endpointId         String?           @map("endpoint_id")
+  inputUserId        String            @map("input_user_id")
+  inputZoneId        String?           @map("input_zone_id")
   status             ValidationStatus
-  responseTimeMs     Int              @map("response_time_ms")
-  requestJson        Json             @map("request_json")
-  rawResponse        Json             @map("raw_response")
-  normalizedResponse Json             @map("normalized_response")
-  errorMessage       String?          @map("error_message")
-  clientIp           String?          @map("client_ip")
-  createdAt          DateTime         @default(now()) @map("created_at")
+  responseTimeMs     Int               @map("response_time_ms")
+  requestJson        Json              @map("request_json")
+  rawResponse        Json              @map("raw_response")
+  normalizedResponse Json              @map("normalized_response")
+  errorMessage       String?           @map("error_message")
+  clientIp           String?           @map("client_ip")
+  createdAt          DateTime          @default(now()) @map("created_at")
 
-  game               Game?            @relation(fields: [gameId], references: [id], onDelete: SetNull)
-  provider           Provider?        @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  apiKey             ApiKey?           @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  game               Game?             @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  provider           Provider?         @relation(fields: [providerId], references: [id], onDelete: SetNull)
   endpoint           ProviderEndpoint? @relation(fields: [endpointId], references: [id], onDelete: SetNull)
   snapshot           ValidationSnapshot?
 
-  @@index([createdAt])
-  @@index([gameId])
-  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([apiKeyId, createdAt])
+  @@index([gameId, createdAt])
+  @@index([providerId, createdAt])
   @@map("validation_logs")
 }
 
@@ -348,7 +352,6 @@ model ValidationSnapshot {
   rawRequestBody     Json          @map("raw_request_body")
   rawResponseHeaders Json          @map("raw_response_headers")
   rawResponseBody    Json          @map("raw_response_body")
-  durationMs         Int           @map("duration_ms")
   createdAt          DateTime      @default(now()) @map("created_at")
 
   log                ValidationLog @relation(fields: [logId], references: [id], onDelete: Cascade)
@@ -359,11 +362,10 @@ model ValidationSnapshot {
 model AdminActivityLog {
   id           String     @id @default(uuid())
   adminId      String?    @map("admin_id")
-  action       String   
-  targetEntity String     @map("target_entity")
-  targetId     String     @map("target_id")
-  oldValue     Json?      @map("old_value")
-  newValue     Json?      @map("new_value")
+  action       String     
+  resource     String     
+  resourceId   String?    @map("resource_id")
+  changes      Json?      
   ipAddress    String?    @map("ip_address")
   userAgent    String?    @map("user_agent")
   createdAt    DateTime   @default(now()) @map("created_at")
@@ -388,17 +390,19 @@ model SystemLog {
 }
 
 model ApiKey {
-  id          String    @id @default(uuid())
-  clientName  String    @map("client_name")
-  keyHash     String    @unique @map("key_hash")
-  keyPrefix   String    @map("key_prefix")
-  rateLimit   Int       @default(100) @map("rate_limit")
-  isActive    Boolean   @default(true) @map("is_active")
-  createdBy   String?   @map("created_by")
-  updatedBy   String?   @map("updated_by")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
+  id          String          @id @default(uuid())
+  clientName  String          @map("client_name")
+  keyHash     String          @unique @map("key_hash")
+  keyPrefix   String          @map("key_prefix")
+  rateLimit   Int             @default(100) @map("rate_limit")
+  isActive    Boolean         @default(true) @map("is_active")
+  createdBy   String?         @map("created_by")
+  updatedBy   String?         @map("updated_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
+
+  logs        ValidationLog[]
 
   @@map("api_keys")
 }

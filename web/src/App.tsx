@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MasterDataPage } from './pages/MasterDataPage';
 import { ApiKeyPage } from './pages/ApiKeyPage';
+import { LogViewerPage } from './pages/LogViewerPage';
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ export function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="master-data" element={<MasterDataPage />} />
             <Route path="api-keys" element={<ApiKeyPage />} />
+            <Route path="logs" element={<LogViewerPage />} />
           </Route>
         </Routes>
       </Router>

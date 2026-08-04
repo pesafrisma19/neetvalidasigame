@@ -802,3 +802,109 @@ masterRoute.openapi(postRestoreApiKeyRoute, async (c) => {
     return c.json(createErrorResponse('Failed to restore API Key', 'RESTORE_FAILED', err.message), 400);
   }
 });
+
+// ------------------------------------------------------
+// ADMIN LOG VIEWER ENDPOINT
+// ------------------------------------------------------
+
+const GetLogsQuerySchema = z.object({
+  page: z.string().optional().default('1'),
+  limit: z.string().optional().default('20'),
+  status: z.enum(['SUCCESS', 'FAILED', 'FALLBACK', 'CIRCUIT_OPEN', 'TIMEOUT']).optional(),
+  apiKeyId: z.string().optional(),
+  gameId: z.string().optional(),
+  providerId: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  search: z.string().optional(),
+});
+
+// GET /api/v1/admin/logs (Paginated & Filtered Validation Logs)
+const getValidationLogsRoute = createRoute({
+  method: 'get',
+  path: '/logs',
+  summary: 'Get Paginated & Filtered Validation Logs',
+  tags: ['Admin Logs'],
+  security: [{ BearerAuth: [] }],
+  request: { query: GetLogsQuerySchema },
+  responses: { 200: { description: 'Paginated validation logs list' } },
+});
+
+masterRoute.openapi(getValidationLogsRoute, async (c) => {
+  try {
+    const query = c.req.valid('query');
+    const page = Math.max(1, parseInt(query.page || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20', 10)));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.apiKeyId) {
+      if (query.apiKeyId === 'legacy' || query.apiKeyId === 'unknown') {
+        where.apiKeyId = null;
+      } else {
+        where.apiKeyId = query.apiKeyId;
+      }
+    }
+
+    if (query.gameId) {
+      where.gameId = query.gameId;
+    }
+
+    if (query.providerId) {
+      where.providerId = query.providerId;
+    }
+
+    if (query.startDate || query.endDate) {
+      where.createdAt = {};
+      if (query.startDate) {
+        where.createdAt.gte = new Date(query.startDate);
+      }
+      if (query.endDate) {
+        where.createdAt.lte = new Date(query.endDate);
+      }
+    }
+
+    if (query.search && query.search.trim() !== '') {
+      const s = query.search.trim();
+      where.OR = [
+        { inputUserId: { contains: s, mode: 'insensitive' } },
+        { inputZoneId: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    const [totalRecords, logs] = await Promise.all([
+      prisma.validationLog.count({ where }),
+      prisma.validationLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          game: { select: { id: true, code: true, name: true } },
+          provider: { select: { id: true, name: true } },
+          endpoint: { select: { id: true, name: true } },
+          apiKey: { select: { id: true, clientName: true, keyPrefix: true } },
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    return c.json(
+      createSuccessResponse(logs, 'Validation logs fetched successfully', {
+        page,
+        limit,
+        totalRecords,
+        totalPages,
+      }),
+      200
+    );
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to fetch validation logs', 'FETCH_FAILED', err.message), 400);
+  }
+});

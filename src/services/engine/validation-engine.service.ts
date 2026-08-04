@@ -12,6 +12,7 @@ export interface ValidateAccountRequest {
   userId: string;
   zoneId?: string;
   clientIp?: string;
+  apiKeyId?: string;
 }
 
 export interface ValidateAccountResult {
@@ -193,6 +194,7 @@ export interface ValidateAccountResult {
 
           // Non-blocking fire-and-forget success logging
           this.logValidation({
+            apiKeyId: req.apiKeyId,
             gameId: game.id,
             providerId: provider.id,
             endpointId: endpoint.id,
@@ -230,6 +232,7 @@ export interface ValidateAccountResult {
 
           // Non-blocking fire-and-forget fallback logging
           this.logValidation({
+            apiKeyId: req.apiKeyId,
             gameId: game.id,
             providerId: provider.id,
             endpointId: endpoint.id,
@@ -319,6 +322,7 @@ export interface ValidateAccountResult {
   }
 
   private async logValidation(data: {
+    apiKeyId?: string;
     gameId: string;
     providerId: string;
     endpointId: string;
@@ -335,6 +339,7 @@ export interface ValidateAccountResult {
     try {
       await this.prisma.validationLog.create({
         data: {
+          apiKeyId: data.apiKeyId,
           gameId: data.gameId,
           providerId: data.providerId,
           endpointId: data.endpointId,
