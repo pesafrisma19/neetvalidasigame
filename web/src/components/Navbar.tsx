@@ -51,14 +51,6 @@ export const Navbar: React.FC = () => {
             <PlayCircle className="w-4 h-4" />
             Playground
           </Link>
-          <Link to="/dashboard" className={navItemClass('/dashboard')}>
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </Link>
-          <Link to="/master-data" className={navItemClass('/master-data')}>
-            <Database className="w-4 h-4" />
-            Master Data
-          </Link>
 
           {/* User Portal Link if Partner logged in */}
           {userToken && (
@@ -68,9 +60,17 @@ export const Navbar: React.FC = () => {
             </Link>
           )}
 
-          {/* Admin Restricted Links */}
+          {/* Admin Restricted Links — only visible when logged in as admin */}
           {adminToken && (
             <>
+              <Link to="/dashboard" className={navItemClass('/dashboard')}>
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </Link>
+              <Link to="/master-data" className={navItemClass('/master-data')}>
+                <Database className="w-4 h-4" />
+                Master Data
+              </Link>
               <Link to="/users" className={navItemClass('/users')}>
                 <Users className="w-4 h-4" />
                 Users
@@ -153,22 +153,6 @@ export const Navbar: React.FC = () => {
             <PlayCircle className="w-4 h-4" />
             Playground
           </Link>
-          <Link
-            to="/dashboard"
-            onClick={() => setMobileMenuOpen(false)}
-            className={navItemClass('/dashboard')}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </Link>
-          <Link
-            to="/master-data"
-            onClick={() => setMobileMenuOpen(false)}
-            className={navItemClass('/master-data')}
-          >
-            <Database className="w-4 h-4" />
-            Master Data
-          </Link>
 
           {userToken && (
             <Link
@@ -181,8 +165,25 @@ export const Navbar: React.FC = () => {
             </Link>
           )}
 
+          {/* Admin Restricted Links — only visible when logged in as admin */}
           {adminToken && (
             <>
+              <Link
+                to="/dashboard"
+                onClick={() => setMobileMenuOpen(false)}
+                className={navItemClass('/dashboard')}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </Link>
+              <Link
+                to="/master-data"
+                onClick={() => setMobileMenuOpen(false)}
+                className={navItemClass('/master-data')}
+              >
+                <Database className="w-4 h-4" />
+                Master Data
+              </Link>
               <Link
                 to="/users"
                 onClick={() => setMobileMenuOpen(false)}
