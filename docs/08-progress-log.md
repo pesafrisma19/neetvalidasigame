@@ -33,12 +33,15 @@ Dokumen ini mencatat riwayat kemajuan implementasi (*progress log*) serta daftar
 - **[DONE] Admin Log Viewer dengan Paginasi, Filter & API Key Binding** (Commit `6c9335b`)
   - Menambahkan `apiKeyId` ke skema `ValidationLog` & composite indexing di `prisma/schema.prisma` (migrasi DB `npx prisma db push` berhasil disinkronisasi ke PostgreSQL Supabase).
   - Menambahkan REST API Endpoint `GET /admin/logs` terproteksi JWT Admin dengan paginasi (`page`, `limit`), filter status, partner (termasuk legacy log option), game, provider, date range, dan search.
-  - Menghubungkan `apiKeyId` dari Hono context (`c.get('apiKey')`) ke `validateAccount()` dan `logValidation()`.
+  - Menhubungkan `apiKeyId` dari Hono context (`c.get('apiKey')`) ke `validateAccount()` dan `logValidation()`.
   - Menambahkan halaman Frontend Admin `web/src/pages/LogViewerPage.tsx` lengkap dengan Filter Bar, Pagination, dan Log Inspector JSON Modal.
-- **[DONE] Playground UI X-API-KEY Credentials Field & Client-Side Pre-Flight Check**
+- **[DONE] Playground UI X-API-KEY Credentials Field & Client-Side Pre-Flight Check** (Commit `2c19697`)
   - Menambahkan input field `X-API-KEY Credentials` di `web/src/pages/PlaygroundPage.tsx` dengan **0 browser storage persistence** (murni di React memory state).
   - Menambahkan validasi pre-flight disisi client yang menghentikan request HTTP (0 network call) dan me-lemparkan pesan error jika `apiKey` belum diisi.
   - Menginjeksikan header `X-API-KEY` secara presisi saat tombol `[ Jalankan Validasi ]` ditekan.
+- **[DONE] MobaPay Adapter Raw Response Sanitization (>99.7% DB Storage Reduction)**
+  - Menghapus property noise raksasa yang tidak terpakai (`app_pay_channel_sub_list`, `pay_channel_list`, `banner_list`, `activity_list`, `date_list`, `time_list`, `shop_info`, `app_info`) dari `rawResponse` di `src/plugins/mobapay.adapter.ts`.
+  - Mengurangi ukuran payload log MobaPay dari **336 KB menjadi 0.92 KB per request** tanpa mempengaruhi akurasi ekstraksi `nickname` dan `firstTopupTiers`.
 
 ---
 

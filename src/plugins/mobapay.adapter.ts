@@ -106,11 +106,24 @@ export class MobapayAdapter implements BaseProviderAdapter {
         };
       });
 
+      // Sanitize heavy unused payment channel and shop catalog noise fields to save DB storage
+      const sanitizedRawJson = { ...rawJson };
+      if (sanitizedRawJson.data) {
+        delete sanitizedRawJson.data.app_pay_channel_sub_list;
+        delete sanitizedRawJson.data.pay_channel_list;
+        delete sanitizedRawJson.data.banner_list;
+        delete sanitizedRawJson.data.activity_list;
+        delete sanitizedRawJson.data.date_list;
+        delete sanitizedRawJson.data.time_list;
+        delete sanitizedRawJson.data.shop_info;
+        delete sanitizedRawJson.data.app_info;
+      }
+
       return {
         nickname: nickname ? String(nickname) : undefined,
         firstTopupAvailable,
         rawResponse: {
-          ...rawJson,
+          ...sanitizedRawJson,
           firstTopupTiers,
         },
         responseTimeMs: durationMs,
