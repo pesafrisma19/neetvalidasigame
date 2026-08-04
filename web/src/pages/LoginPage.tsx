@@ -4,8 +4,9 @@ import { apiClient } from '../api/client';
 import { ShieldCheck, Lock, Mail, ArrowRight } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('admin@validation.platform');
-  const [password, setPassword] = useState('AdminPass123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
