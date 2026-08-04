@@ -15,11 +15,13 @@ import {
   Clock,
   Globe,
   UserCheck,
+  Key,
 } from 'lucide-react';
 
 export const PlaygroundPage: React.FC = () => {
   const [gamesList, setGamesList] = useState<any[]>([]);
   const [gameCode, setGameCode] = useState('mobile-legends');
+  const [apiKey, setApiKey] = useState('');
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [fetchingGames, setFetchingGames] = useState(true);
@@ -139,16 +141,30 @@ export const PlaygroundPage: React.FC = () => {
 
   const handleValidate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    if (!apiKey.trim()) {
+      setErrorMsg('Wajib mengisi X-API-KEY terlebih dahulu untuk menjalankan validasi akun.');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
     setResult(null);
 
     try {
-      const res = await apiClient.post('/public/validate-account', {
-        gameCode,
-        userId: formValues.userId,
-        zoneId: formValues.zoneId || undefined,
-      });
+      const res = await apiClient.post(
+        '/public/validate-account',
+        {
+          gameCode,
+          userId: formValues.userId,
+          zoneId: formValues.zoneId || undefined,
+        },
+        {
+          headers: {
+            'X-API-KEY': apiKey.trim(),
+          },
+        }
+      );
 
       if (res.data && res.data.success) {
         setResult({
@@ -232,6 +248,23 @@ export const PlaygroundPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* X-API-KEY Credentials Field */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-blue-400" />
+                  <span>X-API-KEY Credentials</span>
+                  <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Masukkan API Key partner (e.g. nv_live_...)"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Disimpan di memori React sementara (0 storage persistence).</p>
               </div>
 
               {/* Dynamic Input Fields Rendered Per Game */}
