@@ -43,6 +43,13 @@ Dokumen ini mencatat riwayat kemajuan implementasi (*progress log*) serta daftar
   - Menghapus property noise raksasa yang tidak terpakai (`app_pay_channel_sub_list`, `pay_channel_list`, `banner_list`, `activity_list`, `date_list`, `time_list`, `shop_info`, `app_info`) dari `rawResponse` di `src/plugins/mobapay.adapter.ts`.
   - Mengurangi ukuran payload log MobaPay dari **336 KB menjadi 0.92 KB per request** tanpa mempengaruhi akurasi ekstraksi `nickname` dan `firstTopupTiers`.
 
+- **[DONE] Fase 5: Self-Service Partner User Portal (`/register`, `/user/login`, `/user/dashboard`)**
+  - Menerapkan Axios interceptor terisolasi tanpa fallback (`web/src/api/client.ts`) yang mengirim `user_token` khusus ke `/user/` dan `admin_token` khusus ke `/admin/`.
+  - Menambahkan `web/src/pages/UserRegisterPage.tsx` lengkap dengan One-Time Raw Key Display Modal (copy button & amber warning) dan bonus saldo Rp 5.000 (50 hit validasi gratis).
+  - Menambahkan `web/src/pages/UserLoginPage.tsx` untuk autentikasi mandiri partner user.
+  - Menambahkan `web/src/pages/UserDashboardPage.tsx` dengan Card Status Saldo, Top-Up Manual Instruction Modal, Masked Key Card (`${keyPrefix}...****`), dan Tabel Mutasi Saldo & History Log.
+  - Menyesuaikan `web/src/components/Navbar.tsx` dan `web/src/App.tsx` untuk routing partner portal.
+
 ---
 
 ### ⏳ TUGAS MENDATANG (TODO):

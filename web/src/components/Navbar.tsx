@@ -1,16 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, ScrollText, LogOut, User, Menu, X } from 'lucide-react';
+import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, ScrollText, LogOut, UserCheck, UserPlus, Menu, X } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const token = localStorage.getItem('admin_token');
 
-  const handleLogout = () => {
+  const adminToken = localStorage.getItem('admin_token');
+  const userToken = localStorage.getItem('user_token');
+
+  const handleAdminLogout = () => {
     localStorage.removeItem('admin_token');
     navigate('/login');
+    setMobileMenuOpen(false);
+  };
+
+  const handleUserLogout = () => {
+    localStorage.removeItem('user_token');
+    localStorage.removeItem('user_info');
+    navigate('/user/login');
     setMobileMenuOpen(false);
   };
 
@@ -49,7 +58,17 @@ export const Navbar: React.FC = () => {
             <Database className="w-4 h-4" />
             Master Data
           </Link>
-          {token && (
+
+          {/* User Portal Link if Partner logged in */}
+          {userToken && (
+            <Link to="/user/dashboard" className={navItemClass('/user/dashboard')}>
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <span className="text-emerald-400 font-semibold">User Portal</span>
+            </Link>
+          )}
+
+          {/* Admin Restricted Links */}
+          {adminToken && (
             <>
               <Link to="/api-keys" className={navItemClass('/api-keys')}>
                 <Key className="w-4 h-4" />
@@ -62,23 +81,49 @@ export const Navbar: React.FC = () => {
             </>
           )}
 
-          {token ? (
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 ml-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-          ) : (
-            <Link
-              to="/login"
-              className="flex items-center gap-2 px-4 py-2 ml-2 rounded-lg text-sm font-medium bg-slate-800 text-white hover:bg-slate-700 transition-colors border border-slate-700"
-            >
-              <User className="w-4 h-4" />
-              Admin Login
-            </Link>
-          )}
+          {/* Auth Action Buttons */}
+          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-800">
+            {userToken && (
+              <button
+                onClick={handleUserLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-400 hover:bg-amber-500/10 transition-colors border border-amber-500/20"
+                title="Logout dari Partner Portal"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Logout Partner
+              </button>
+            )}
+
+            {adminToken && (
+              <button
+                onClick={handleAdminLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20"
+                title="Logout dari Admin Console"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Logout Admin
+              </button>
+            )}
+
+            {!adminToken && !userToken && (
+              <>
+                <Link
+                  to="/register"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-500 text-white transition-colors"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Daftar Partner
+                </Link>
+                <Link
+                  to="/user/login"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors border border-slate-700"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Login Partner
+                </Link>
+              </>
+            )}
+          </div>
         </nav>
 
         {/* Mobile Hamburger Toggle Button */}
@@ -118,35 +163,79 @@ export const Navbar: React.FC = () => {
             <Database className="w-4 h-4" />
             Master Data
           </Link>
-          {token && (
+
+          {userToken && (
             <Link
-              to="/api-keys"
+              to="/user/dashboard"
               onClick={() => setMobileMenuOpen(false)}
-              className={navItemClass('/api-keys')}
+              className={navItemClass('/user/dashboard')}
             >
-              <Key className="w-4 h-4" />
-              API Keys
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+              <span className="text-emerald-400 font-semibold">User Portal</span>
             </Link>
           )}
 
-          <div className="pt-2 border-t border-slate-800">
-            {token ? (
+          {adminToken && (
+            <>
+              <Link
+                to="/api-keys"
+                onClick={() => setMobileMenuOpen(false)}
+                className={navItemClass('/api-keys')}
+              >
+                <Key className="w-4 h-4" />
+                API Keys
+              </Link>
+              <Link
+                to="/logs"
+                onClick={() => setMobileMenuOpen(false)}
+                className={navItemClass('/logs')}
+              >
+                <ScrollText className="w-4 h-4" />
+                Log Viewer
+              </Link>
+            </>
+          )}
+
+          <div className="pt-2 border-t border-slate-800 space-y-2">
+            {userToken && (
               <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400 bg-red-500/10 border border-red-500/20"
+                onClick={handleUserLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-amber-400 bg-amber-500/10 border border-amber-500/20"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
+                Logout Partner
               </button>
-            ) : (
-              <Link
-                to="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors"
+            )}
+
+            {adminToken && (
+              <button
+                onClick={handleAdminLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20"
               >
-                <User className="w-4 h-4" />
-                Admin Login
-              </Link>
+                <LogOut className="w-4 h-4" />
+                Logout Admin
+              </button>
+            )}
+
+            {!adminToken && !userToken && (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-emerald-600 text-white"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Daftar Partner
+                </Link>
+                <Link
+                  to="/user/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 text-slate-200 border border-slate-700"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Login Partner
+                </Link>
+              </div>
             )}
           </div>
         </div>

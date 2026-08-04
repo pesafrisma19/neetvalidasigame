@@ -8,7 +8,15 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('admin_token');
+  let token: string | null = null;
+  const url = config.url || '';
+
+  if (url.includes('/user/') || url.startsWith('user/')) {
+    token = localStorage.getItem('user_token');
+  } else if (url.includes('/admin/') || url.startsWith('admin/')) {
+    token = localStorage.getItem('admin_token');
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
