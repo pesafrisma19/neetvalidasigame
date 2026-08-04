@@ -1,7 +1,18 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+const explicitNodeEnv = process.env.NODE_ENV?.trim();
+const explicitUseMock = process.env.USE_MOCK_ADAPTER?.trim();
+
 dotenv.config();
+
+// Ensure shell process.env overrides .env file if explicitly set
+if (explicitNodeEnv) {
+  process.env.NODE_ENV = explicitNodeEnv;
+}
+if (explicitUseMock) {
+  process.env.USE_MOCK_ADAPTER = explicitUseMock;
+}
 
 const envSchema = z.object({
   PORT: z.string().default('3000').transform((val) => parseInt(val, 10)),
@@ -17,6 +28,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   MELPA_TOKEN: z.string().optional().default(''),
   MOBAPAY_TOKEN: z.string().optional().default(''),
+  USE_MOCK_ADAPTER: z.string().optional().default('false'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
 });
 

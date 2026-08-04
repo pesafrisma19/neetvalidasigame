@@ -22,13 +22,26 @@ export async function apiKeyMiddleware(c: Context, next: Next) {
   const keyHash = createHash('sha256').update(rawKey).digest('hex');
 
   try {
-    const apiKeyRecord = await prisma.apiKey.findFirst({
-      where: {
-        keyHash: keyHash,
-        isActive: true,
-        deletedAt: null,
-      },
-    });
+    let apiKeyRecord = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        apiKeyRecord = await prisma.apiKey.findFirst({
+          where: {
+            keyHash: keyHash,
+            isActive: true,
+            deletedAt: null,
+          },
+        });
+        break;
+      } catch (err: any) {
+        attempts++;
+        if (attempts >= maxAttempts) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 25 * attempts));
+      }
+    }
 
     if (!apiKeyRecord) {
       return c.json(

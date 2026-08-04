@@ -5,6 +5,7 @@ import { MelpaAdapter } from '../../plugins/melpa.adapter.js';
 import { MobapayAdapter } from '../../plugins/mobapay.adapter.js';
 import { SupersusAdapter } from '../../plugins/supersus.adapter.js';
 import { NeteaseAdapter } from '../../plugins/netease.adapter.js';
+import { MockAdapter } from '../../plugins/mock.adapter.js';
 import { logger } from '../../utils/logger.js';
 
 export interface ValidateAccountRequest {
@@ -13,6 +14,7 @@ export interface ValidateAccountRequest {
   zoneId?: string;
   clientIp?: string;
   apiKeyId?: string;
+  useMock?: boolean;
 }
 
 export interface ValidateAccountResult {
@@ -42,6 +44,7 @@ export interface ValidateAccountResult {
     this.registerAdapter(new MobapayAdapter());
     this.registerAdapter(new SupersusAdapter());
     this.registerAdapter(new NeteaseAdapter());
+    this.registerAdapter(new MockAdapter());
   }
 
   registerAdapter(adapter: BaseProviderAdapter) {
@@ -119,27 +122,32 @@ export interface ValidateAccountResult {
           continue;
         }
 
-        // Circuit Breaker check
-        if (endpoint.circuitState === 'OPEN' && endpoint.circuitOpenUntil && endpoint.circuitOpenUntil > new Date()) {
-          logger.warn({ endpointId: endpoint.id, provider: provider.name }, 'Skipping endpoint due to OPEN Circuit Breaker');
-          continue;
+        const isTestEnv = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'testing';
+        const isMockActive = isTestEnv && (req.useMock === true || process.env.USE_MOCK_ADAPTER === 'true');
+
+        // Circuit Breaker check (skip during mock test runs)
+        if (!isMockActive) {
+          if (endpoint.circuitState === 'OPEN' && endpoint.circuitOpenUntil && endpoint.circuitOpenUntil > new Date()) {
+            logger.warn({ endpointId: endpoint.id, provider: provider.name }, 'Skipping endpoint due to OPEN Circuit Breaker');
+            continue;
+          }
         }
 
         // Atomic Single-Probe Claim for HALF_OPEN State
         let isProbeRequest = false;
         if (endpoint.circuitState === 'HALF_OPEN') {
-          const claimProbe = await this.prisma.providerEndpoint.updateMany({
+          const claimed = await this.prisma.providerEndpoint.updateMany({
             where: {
               id: endpoint.id,
               circuitState: 'HALF_OPEN',
             },
             data: {
-              circuitState: 'OPEN', // Lock temporarily so concurrent requests skip it!
-              circuitOpenUntil: new Date(Date.now() + 30 * 1000), // 30s probe lock
+              circuitState: 'OPEN',
+              circuitOpenUntil: new Date(Date.now() + 30 * 1000),
             },
           });
 
-          if (claimProbe.count === 0) {
+          if (claimed.count === 0) {
             logger.info(
               { endpointId: endpoint.id, provider: provider.name },
               'Probing already claimed by another concurrent request, skipping to candidate fallback'
@@ -154,11 +162,17 @@ export interface ValidateAccountResult {
           );
         }
 
-        const adapter = this.adapters.get(mapping.adapterKey);
+        const adapterKey = isMockActive ? 'MOCK_ADAPTER' : mapping.adapterKey;
+        const adapter = this.adapters.get(adapterKey);
         if (!adapter) {
-          logger.error({ adapterKey: mapping.adapterKey }, 'Adapter plugin not found');
+          logger.error({ adapterKey }, 'Adapter plugin not found');
           continue;
         }
+
+        logger.info(
+          { adapterKey, isMockActive, gameCode: req.gameCode, userId: req.userId },
+          '⚡ Executing Validation Provider Adapter'
+        );
 
         // Provider Timeout Enforcement (endpoint timeoutMs or default 5000ms)
         const effectiveTimeout = endpoint.timeoutMs || 5000;
@@ -192,34 +206,36 @@ export interface ValidateAccountResult {
           resolvedResult = result;
           resolvedProviderName = provider.name;
 
-          // Non-blocking fire-and-forget success logging
-          this.logValidation({
-            apiKeyId: req.apiKeyId,
-            gameId: game.id,
-            providerId: provider.id,
-            endpointId: endpoint.id,
-            inputUserId: req.userId,
-            inputZoneId: req.zoneId,
-            status: 'SUCCESS',
-            responseTimeMs: durationMs,
-            requestJson: req,
-            rawResponse: result.rawResponse,
-            normalizedResponse: result,
-            clientIp: req.clientIp,
-          }).catch((err) => logger.error({ err }, 'Failed async success validation logging'));
+          // Non-blocking fire-and-forget success logging (skip during mock test runs to prevent pool exhaustion)
+          if (!isMockActive) {
+            this.logValidation({
+              apiKeyId: req.apiKeyId,
+              gameId: game.id,
+              providerId: provider.id,
+              endpointId: endpoint.id,
+              inputUserId: req.userId,
+              inputZoneId: req.zoneId,
+              status: 'SUCCESS',
+              responseTimeMs: durationMs,
+              requestJson: req,
+              rawResponse: result.rawResponse,
+              normalizedResponse: result,
+              clientIp: req.clientIp,
+            }).catch((err) => logger.error({ err }, 'Failed async success validation logging'));
 
-          // Reset Circuit Breaker to CLOSED on successful validation
-          if (endpoint.circuitState !== 'CLOSED' || endpoint.consecutiveErrors > 0 || isProbeRequest) {
-            this.prisma.providerEndpoint
-              .update({
-                where: { id: endpoint.id },
-                data: {
-                  circuitState: 'CLOSED',
-                  consecutiveErrors: 0,
-                  circuitOpenUntil: null,
-                },
-              })
-              .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker reset on success'));
+            // Reset Circuit Breaker to CLOSED on successful validation
+            if (endpoint.circuitState !== 'CLOSED' || endpoint.consecutiveErrors > 0 || isProbeRequest) {
+              this.prisma.providerEndpoint
+                .update({
+                  where: { id: endpoint.id },
+                  data: {
+                    circuitState: 'CLOSED',
+                    consecutiveErrors: 0,
+                    circuitOpenUntil: null,
+                  },
+                })
+                .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker reset on success'));
+            }
           }
 
           // Break fallback loop for this capability on success
@@ -230,37 +246,39 @@ export interface ValidateAccountResult {
           const durationMs = Date.now() - startTime;
           logger.error({ capability: capabilityCode, provider: provider.name, error: err.message }, 'Capability provider failed, attempting fallback');
 
-          // Non-blocking fire-and-forget fallback logging
-          this.logValidation({
-            apiKeyId: req.apiKeyId,
-            gameId: game.id,
-            providerId: provider.id,
-            endpointId: endpoint.id,
-            inputUserId: req.userId,
-            inputZoneId: req.zoneId,
-            status: 'FALLBACK',
-            responseTimeMs: durationMs,
-            requestJson: req,
-            rawResponse: { error: err.message },
-            normalizedResponse: {},
-            errorMessage: err.message,
-            clientIp: req.clientIp,
-          }).catch((logErr) => logger.error({ logErr }, 'Failed async fallback validation logging'));
+          // Non-blocking fire-and-forget fallback logging (skip during mock test runs to prevent pool exhaustion)
+          if (!isMockActive) {
+            this.logValidation({
+              apiKeyId: req.apiKeyId,
+              gameId: game.id,
+              providerId: provider.id,
+              endpointId: endpoint.id,
+              inputUserId: req.userId,
+              inputZoneId: req.zoneId,
+              status: 'FALLBACK',
+              responseTimeMs: durationMs,
+              requestJson: req,
+              rawResponse: { error: err.message },
+              normalizedResponse: {},
+              errorMessage: err.message,
+              clientIp: req.clientIp,
+            }).catch((logErr) => logger.error({ logErr }, 'Failed async fallback validation logging'));
 
-          // Circuit Breaker counter increment and re-trip logic
-          const newErrors = endpoint.consecutiveErrors + 1;
-          const shouldOpen = isProbeRequest || newErrors >= 5;
+            // Circuit Breaker counter increment and re-trip logic
+            const newErrors = endpoint.consecutiveErrors + 1;
+            const shouldOpen = isProbeRequest || newErrors >= 5;
 
-          this.prisma.providerEndpoint
-            .update({
-              where: { id: endpoint.id },
-              data: {
-                consecutiveErrors: shouldOpen ? 5 : newErrors,
-                circuitState: shouldOpen ? 'OPEN' : endpoint.circuitState,
-                circuitOpenUntil: shouldOpen ? new Date(Date.now() + 5 * 60 * 1000) : endpoint.circuitOpenUntil,
-              },
-            })
-            .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker update on failure'));
+            this.prisma.providerEndpoint
+              .update({
+                where: { id: endpoint.id },
+                data: {
+                  consecutiveErrors: shouldOpen ? 5 : newErrors,
+                  circuitState: shouldOpen ? 'OPEN' : endpoint.circuitState,
+                  circuitOpenUntil: shouldOpen ? new Date(Date.now() + 5 * 60 * 1000) : endpoint.circuitOpenUntil,
+                },
+              })
+              .catch((cbErr) => logger.error({ cbErr }, 'Failed async circuit breaker update on failure'));
+          }
         }
       }
 

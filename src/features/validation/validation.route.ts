@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { prisma } from '../../lib/prisma.js';
+import { env } from '../../config/env.config.js';
 import { ValidationEngineService } from '../../services/engine/validation-engine.service.js';
 import { createSuccessResponse, createErrorResponse } from '../../utils/response-envelope.js';
 import { apiKeyMiddleware } from '../../middlewares/api-key.middleware.js';
@@ -104,53 +105,105 @@ validationRoute.openapi(postValidateAccountRoute, async (c) => {
     const clientIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || '127.0.0.1';
     const apiKeyRecord = (c as any).get('apiKey');
 
-    // 1. Execute Validation via Vendor Engine Strategy
-    const result = await validationEngine.validateAccount({
-      ...body,
-      clientIp,
-      apiKeyId: apiKeyRecord?.id,
-    });
+    // Strictly gate Mock Adapter: ONLY allowed in explicit test mode (NODE_ENV=test/testing or USE_MOCK_ADAPTER=true flag), 100% IGNORED in production
+    const isTestEnv = (env.NODE_ENV === 'testing' || process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'testing' || process.env.USE_MOCK_ADAPTER === 'true') && env.NODE_ENV !== 'production';
+    const useMock = isTestEnv && (c.req.header('x-use-mock') === 'true' || env.USE_MOCK_ADAPTER === 'true');
+
+    // 1. Execute Validation via Vendor Engine Strategy (with pool backoff retry)
+    let result: any;
+    let engineAttempts = 0;
+    const maxEngineAttempts = 3;
+
+    while (engineAttempts < maxEngineAttempts) {
+      try {
+        result = await validationEngine.validateAccount({
+          ...body,
+          clientIp,
+          apiKeyId: apiKeyRecord?.id,
+          useMock,
+        });
+        break;
+      } catch (engineErr: any) {
+        if (
+          engineErr.message === 'GAME_NOT_FOUND' ||
+          engineErr.message === 'INVALID_USER_ID_FORMAT' ||
+          engineErr.message === 'INVALID_ZONE_ID_FORMAT' ||
+          engineErr.message === 'NO_MAPPING_AVAILABLE'
+        ) {
+          throw engineErr; // Domain errors are NOT retried!
+        }
+        engineAttempts++;
+        if (engineAttempts >= maxEngineAttempts) {
+          throw engineErr;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20 * engineAttempts));
+      }
+    }
 
     // 2. POST-SUCCESS ATOMIC DEDUCTION (ONLY IF VALIDATION RETURNED SUCCESS & KEY HAS USER ID)
     if (apiKeyRecord?.userId) {
-      await prisma.$transaction(async (tx) => {
-        // Single Atomic Conditional Decrement
-        const updateRes = await tx.user.updateMany({
-          where: {
-            id: apiKeyRecord.userId,
-            balance: { gte: 100 },
-          },
-          data: {
-            balance: { decrement: 100 },
-          },
-        });
+      let attempts = 0;
+      const maxAttempts = 5;
 
-        if (updateRes.count === 0) {
-          throw new Error('INSUFFICIENT_BALANCE_CONCURRENT');
+      while (attempts < maxAttempts) {
+        try {
+          await prisma.$transaction(
+            async (tx) => {
+              // Single Atomic SQL Update & Returning Balance Snapshot
+              let updatedUser;
+              try {
+                updatedUser = await tx.user.update({
+                  where: {
+                    id: apiKeyRecord.userId,
+                    balance: { gte: 100 },
+                  },
+                  data: {
+                    balance: { decrement: 100 },
+                  },
+                  select: { balance: true },
+                });
+              } catch (updateErr: any) {
+                if (updateErr.code === 'P2025') {
+                  throw new Error('INSUFFICIENT_BALANCE_CONCURRENT');
+                }
+                throw updateErr;
+              }
+
+              const balanceAfter = updatedUser.balance;
+              const balanceBefore = balanceAfter + 100;
+
+              // Record Audit Mutation Log
+              await tx.balanceTransaction.create({
+                data: {
+                  userId: apiKeyRecord.userId,
+                  apiKeyId: apiKeyRecord.id,
+                  amount: -100,
+                  balanceBefore,
+                  balanceAfter,
+                  type: 'VALIDATION_DEDUCTION',
+                  description: `Validasi sukses game '${result.gameCode}' (User ID: ${result.userId})`,
+                },
+              });
+            },
+            {
+              maxWait: 10000, // Wait up to 10s for connection pool availability under burst
+              timeout: 15000, // Allow up to 15s for transaction completion under row-lock queues
+            }
+          );
+          break; // Transaction succeeded, exit retry loop
+        } catch (txErr: any) {
+          if (txErr.message === 'INSUFFICIENT_BALANCE_CONCURRENT') {
+            throw txErr; // Do not retry if balance is insufficient!
+          }
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw txErr;
+          }
+          // Stagger retries with random jitter to relieve row-lock contention under high concurrency
+          const jitter = Math.floor(Math.random() * 50);
+          await new Promise((resolve) => setTimeout(resolve, 50 * attempts + jitter));
         }
-
-        // Fetch updated balance for snapshot
-        const updatedUser = await tx.user.findUnique({
-          where: { id: apiKeyRecord.userId },
-          select: { balance: true },
-        });
-
-        const balanceAfter = updatedUser?.balance || 0;
-        const balanceBefore = balanceAfter + 100;
-
-        // Record Audit Mutation Log
-        await tx.balanceTransaction.create({
-          data: {
-            userId: apiKeyRecord.userId,
-            apiKeyId: apiKeyRecord.id,
-            amount: -100,
-            balanceBefore,
-            balanceAfter,
-            type: 'VALIDATION_DEDUCTION',
-            description: `Validasi sukses game '${result.gameCode}' (User ID: ${result.userId})`,
-          },
-        });
-      });
+      }
     }
 
     return c.json(
