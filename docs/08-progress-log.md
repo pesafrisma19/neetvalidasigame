@@ -43,15 +43,15 @@ Dokumen ini mencatat riwayat kemajuan implementasi (*progress log*) serta daftar
   - Menghapus property noise raksasa yang tidak terpakai (`app_pay_channel_sub_list`, `pay_channel_list`, `banner_list`, `activity_list`, `date_list`, `time_list`, `shop_info`, `app_info`) dari `rawResponse` di `src/plugins/mobapay.adapter.ts`.
   - Mengurangi ukuran payload log MobaPay dari **336 KB menjadi 0.92 KB per request** tanpa mempengaruhi akurasi ekstraksi `nickname` dan `firstTopupTiers`.
 
-- **[DONE] Fase 5: Self-Service Partner User Portal (`/register`, `/user/login`, `/user/dashboard`)**
-  - Menerapkan Axios interceptor terisolasi tanpa fallback (`web/src/api/client.ts`) yang mengirim `user_token` khusus ke `/user/` dan `admin_token` khusus ke `/admin/`.
-  - Menambahkan `web/src/pages/UserRegisterPage.tsx` lengkap dengan One-Time Raw Key Display Modal (copy button & amber warning) dan bonus saldo Rp 5.000 (50 hit validasi gratis).
-  - Menambahkan `web/src/pages/UserLoginPage.tsx` untuk autentikasi mandiri partner user.
-  - Menambahkan `web/src/pages/UserDashboardPage.tsx` dengan Card Status Saldo, Top-Up Manual Instruction Modal, Masked Key Card (`${keyPrefix}...****`), dan Tabel Mutasi Saldo & History Log.
-  - Menyesuaikan `web/src/components/Navbar.tsx` dan `web/src/App.tsx` untuk routing partner portal.
+- **[DONE] Fase 6: Final Pre-Deploy Audit & Production Git Release** (Commit `2d0df41`)
+  - Melakukan audit kualifikasi pra-deployment (Env configuration, HTTPS reverse proxy `https://api.neetflix.monster`, CORS `CORS_ORIGIN`, In-memory Rate Limiting sliding window).
+  - Melakukan kompilasi ulang TypeScript & Vite production build check (`✓ built in 872ms`).
+  - Mengunggah seluruh unit kode teruji Fase 1-5 ke repository `origin/main` (Commit `2d0df41`).
 
 ---
 
 ### ⏳ TUGAS MENDATANG (TODO):
+- **[TODO] VPS PM2 Production Update Execution**  
+  Jalankan perintah deployment akhir di VPS production (`cd ~/neetvalidasigame && git pull origin main && npx prisma generate && npm run build && pm2 restart validation-api --update-env`).
 - **[TODO] Deployment Ke VPS Ubuntu & Vercel CDN**  
   Deploy seluruh perbaikan ke VPS production (`git pull && npx prisma generate && npm run build && pm2 restart validation-api --update-env`). Catatan: `npx prisma generate` wajib dijalankan di VPS agar Prisma Client mengenali kolom `apiKeyId`.

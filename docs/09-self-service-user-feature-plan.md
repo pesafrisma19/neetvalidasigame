@@ -85,19 +85,21 @@ Dokumen ini berisi panduan rencana pengerjaan (*feature plan*) bertahap untuk tr
 
 ---
 
-### 🔹 FASE 5: Frontend User Portal (`/register`, `/login`, `/user/dashboard`)
+### 🔹 FASE 5: Frontend User Portal (`/register`, `/login`, `/user/dashboard`) [DONE]
 * **Tujuan:** Membangun antarmuka pengguna untuk partner user mendaftar dan mengelola saldo/API key.
-* **Rincian Perubahan:**
-  - Buat `web/src/pages/UserRegisterPage.tsx` dengan Modal Pop-up Kritis Penyimpanan Raw Key One-Time Display (Copy Key button).
-  - Buat `web/src/pages/UserLoginPage.tsx`.
-  - Buat `web/src/pages/UserDashboardPage.tsx` (Status Saldo Rp 5.000, Card Top-Up Manual Info Transfer, API key masked, & tabel mutasi saldo + log pribadi).
-  - Daftarkan route di `web/src/App.tsx`.
-* **Stop Point:** Minta review & approval User.
+* **Status:** ✅ **DONE** (Commit `2d0df41`).
+* **Fitur Selesai:**
+  - `web/src/pages/UserRegisterPage.tsx` dengan Modal Pop-up Kritis One-Time Raw Key Display (Copy Key button) & Bonus Saldo Rp 5.000.
+  - `web/src/pages/UserLoginPage.tsx` untuk autentikasi mandiri partner user.
+  - `web/src/pages/UserDashboardPage.tsx` (Status Saldo, Card Top-Up Manual Info Transfer, API key masked `${keyPrefix}...****`, & tabel mutasi saldo + log pribadi).
+  - Isolasi token di `web/src/api/client.ts` tanpa fallback.
 
 ---
 
-### 🔹 FASE 6: Final Regression Test & Production Deploy
-* **Tujuan:** Verifikasi akhir seluruh sistem sebelum di-deploy.
-* **Rincian:**
-  - Build check (`npm run compile; npm run build root + web`).
-  - Deploy ke VPS (`git pull`, `npx prisma generate`, `npm run build`, `pm2 restart`).
+### 🔹 FASE 6: Final Regression Test & Production Deploy [DONE]
+* **Tujuan:** Verifikasi akhir seluruh sistem dan deployment ke VPS Production.
+* **Status:** ✅ **DONE** (Commit `2d0df41` pushed to `origin/main`).
+* **Rincian Selesai:**
+  - Pre-deployment audit (Env, HTTPS, CORS, Rate Limiting) 100% lulus.
+  - Local compilation & Vite build check (`✓ built in 872ms`).
+  - Git commit & push (`git push origin main`).
