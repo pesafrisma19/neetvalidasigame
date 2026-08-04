@@ -512,13 +512,14 @@ export const UserManagementPage: React.FC = () => {
                 <label className="block text-slate-400 mb-1 font-medium">Nominal Top Up (IDR) *</label>
                 <input
                   type="number"
-                  min={1}
+                  min={1000}
                   step={1000}
                   value={topUpAmount}
                   onChange={(e) => setTopUpAmount(Number(e.target.value))}
                   required
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold font-mono text-emerald-400 focus:outline-none focus:border-emerald-500"
                 />
+
                 <div className="flex gap-2 mt-2">
                   {[10000, 50000, 100000, 500000].map((preset) => (
                     <button
