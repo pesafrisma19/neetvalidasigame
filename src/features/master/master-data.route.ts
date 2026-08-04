@@ -908,3 +908,93 @@ masterRoute.openapi(getValidationLogsRoute, async (c) => {
     return c.json(createErrorResponse('Failed to fetch validation logs', 'FETCH_FAILED', err.message), 400);
   }
 });
+
+// ============================================
+// 12. ADMIN MANUAL USER TOP-UP ENDPOINT
+// ============================================
+const adminUserTopupRoute = createRoute({
+  method: 'post',
+  path: '/users/{id}/topup',
+  summary: 'Admin Manual Top-Up User Wallet Balance',
+  tags: ['Admin Management'],
+  security: [{ BearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+    body: {
+      content: {
+        'application/json': {
+          schema: z.object({
+            amount: z.number().int().positive().openapi({ example: 10000, description: 'Amount in IDR to credit to user wallet' }),
+            description: z.string().optional().openapi({ example: 'Top-up manual via TF BCA Bank' }),
+            referenceNo: z.string().optional().openapi({ example: 'TF-BCA-889102' }),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: { description: 'User wallet balance successfully credited' },
+    400: { description: 'Invalid input parameters or user not found' },
+  },
+});
+
+masterRoute.openapi(adminUserTopupRoute, async (c) => {
+  try {
+    const { id: userId } = c.req.valid('param');
+    const { amount, description, referenceNo } = c.req.valid('json');
+
+    const targetUser = await prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+    });
+
+    if (!targetUser) {
+      return c.json(createErrorResponse('User account not found', 'NOT_FOUND'), 404);
+    }
+
+    // Execute Interactive Callback Transaction for Atomic Top-up & Mutation Log
+    const [updatedUser, txLog] = await prisma.$transaction(async (tx) => {
+      const userBefore = await tx.user.findUnique({ where: { id: userId } });
+      if (!userBefore) throw new Error('USER_NOT_FOUND');
+
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: {
+          balance: { increment: amount },
+        },
+      });
+
+      const log = await tx.balanceTransaction.create({
+        data: {
+          userId,
+          amount,
+          balanceBefore: userBefore.balance,
+          balanceAfter: updated.balance,
+          type: 'MANUAL_TOPUP_ADMIN',
+          description: description || `Top-up manual Admin (Ref: ${referenceNo || 'ADMIN_MANUAL'})`,
+        },
+      });
+
+      return [updated, log];
+    });
+
+    return c.json(
+      createSuccessResponse(
+        {
+          user: {
+            id: updatedUser.id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            balanceBefore: txLog.balanceBefore,
+            balanceAfter: updatedUser.balance,
+            amountCredited: amount,
+          },
+          transaction: txLog,
+        },
+        `Saldo akun ${updatedUser.name} berhasil ditambah Rp ${amount.toLocaleString('id-ID')}`
+      ),
+      200
+    );
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to top-up user balance', 'TOPUP_FAILED', err.message), 400);
+  }
+});
