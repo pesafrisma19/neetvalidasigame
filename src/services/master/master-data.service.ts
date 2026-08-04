@@ -3,6 +3,7 @@ import type { GameRepository } from '../../repositories/game/game.repository.js'
 import type { ProviderRepository, ProviderEndpointRepository } from '../../repositories/provider/provider.repository.js';
 import type { CapabilityRepository } from '../../repositories/capability/capability.repository.js';
 import type { MappingRepository } from '../../repositories/mapping/mapping.repository.js';
+import type { UserRepository } from '../../repositories/user/user.repository.js';
 
 export class MasterDataService {
   constructor(
@@ -11,8 +12,10 @@ export class MasterDataService {
     private readonly providerRepo: ProviderRepository,
     private readonly endpointRepo: ProviderEndpointRepository,
     private readonly capabilityRepo: CapabilityRepository,
-    private readonly mappingRepo: MappingRepository
+    private readonly mappingRepo: MappingRepository,
+    private readonly userRepo?: UserRepository
   ) {}
+
 
   // ============================================
   // 1. GAMES CRUD & RECYCLE BIN RESTORE
@@ -194,4 +197,94 @@ export class MasterDataService {
   async createTestAccount(data: Prisma.TestAccountCreateInput): Promise<TestAccount> {
     return this.prisma.testAccount.create({ data });
   }
+
+  // ============================================
+  // 6. USER MANAGEMENT
+  // ============================================
+  async getAllUsers(
+    search?: string,
+    page = 1,
+    limit = 20,
+    sortBy: 'createdAt' | 'name' | 'email' | 'balance' = 'createdAt',
+    sortOrder: 'asc' | 'desc' = 'desc'
+  ) {
+    const validLimit = Math.min(Math.max(1, limit), 100);
+    const validPage = Math.max(1, page);
+    const skip = (validPage - 1) * validLimit;
+
+    if (this.userRepo) {
+      const [users, totalRecords] = await Promise.all([
+        this.userRepo.findPaginated(search, skip, validLimit, sortBy, sortOrder),
+        this.userRepo.countPaginated(search),
+      ]);
+      return {
+        users,
+        meta: {
+          page: validPage,
+          limit: validLimit,
+          totalRecords,
+          totalPages: Math.ceil(totalRecords / validLimit),
+        },
+      };
+    }
+
+    const where: any = { deletedAt: null };
+    if (search && search.trim()) {
+      const s = search.trim();
+      where.OR = [
+        { name: { contains: s, mode: 'insensitive' } },
+        { email: { contains: s, mode: 'insensitive' } },
+        { companyName: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, totalRecords] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: validLimit,
+        orderBy: { [sortBy]: sortOrder },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          companyName: true,
+          balance: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      users,
+      meta: {
+        page: validPage,
+        limit: validLimit,
+        totalRecords,
+        totalPages: Math.ceil(totalRecords / validLimit),
+      },
+    };
+  }
+
+  async getUserById(id: string) {
+    return this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        companyName: true,
+        balance: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
 }
+

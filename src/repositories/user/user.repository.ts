@@ -19,4 +19,61 @@ export class UserRepository {
       },
     });
   }
+
+  async findPaginated(
+    search?: string,
+    skip = 0,
+    take = 20,
+    sortBy: 'createdAt' | 'name' | 'email' | 'balance' = 'createdAt',
+    sortOrder: 'asc' | 'desc' = 'desc'
+  ): Promise<User[]> {
+    const where: any = { deletedAt: null };
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      where.OR = [
+        { name: { contains: s, mode: 'insensitive' } },
+        { email: { contains: s, mode: 'insensitive' } },
+        { companyName: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    return (await prisma.user.findMany({
+      where,
+      skip,
+      take,
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        companyName: true,
+        balance: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
+    })) as unknown as User[];
+
+  }
+
+  async countPaginated(search?: string): Promise<number> {
+    const where: any = { deletedAt: null };
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      where.OR = [
+        { name: { contains: s, mode: 'insensitive' } },
+        { email: { contains: s, mode: 'insensitive' } },
+        { companyName: { contains: s, mode: 'insensitive' } },
+      ];
+    }
+
+    return prisma.user.count({ where });
+  }
 }
+

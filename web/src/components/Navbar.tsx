@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, ScrollText, LogOut, UserCheck, UserPlus, Menu, X } from 'lucide-react';
+import { ShieldCheck, LayoutDashboard, PlayCircle, Database, Key, ScrollText, LogOut, UserCheck, UserPlus, Menu, X, Users } from 'lucide-react';
+
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -70,6 +71,10 @@ export const Navbar: React.FC = () => {
           {/* Admin Restricted Links */}
           {adminToken && (
             <>
+              <Link to="/users" className={navItemClass('/users')}>
+                <Users className="w-4 h-4" />
+                Users
+              </Link>
               <Link to="/api-keys" className={navItemClass('/api-keys')}>
                 <Key className="w-4 h-4" />
                 API Keys
@@ -80,6 +85,7 @@ export const Navbar: React.FC = () => {
               </Link>
             </>
           )}
+
 
           {/* Auth Action Buttons */}
           <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-800">
@@ -178,6 +184,14 @@ export const Navbar: React.FC = () => {
           {adminToken && (
             <>
               <Link
+                to="/users"
+                onClick={() => setMobileMenuOpen(false)}
+                className={navItemClass('/users')}
+              >
+                <Users className="w-4 h-4" />
+                Users
+              </Link>
+              <Link
                 to="/api-keys"
                 onClick={() => setMobileMenuOpen(false)}
                 className={navItemClass('/api-keys')}
@@ -195,6 +209,7 @@ export const Navbar: React.FC = () => {
               </Link>
             </>
           )}
+
 
           <div className="pt-2 border-t border-slate-800 space-y-2">
             {userToken && (

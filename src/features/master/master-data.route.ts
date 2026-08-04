@@ -5,6 +5,7 @@ import { GameRepository } from '../../repositories/game/game.repository.js';
 import { ProviderRepository, ProviderEndpointRepository } from '../../repositories/provider/provider.repository.js';
 import { CapabilityRepository } from '../../repositories/capability/capability.repository.js';
 import { MappingRepository } from '../../repositories/mapping/mapping.repository.js';
+import { UserRepository } from '../../repositories/user/user.repository.js';
 import { MasterDataService } from '../../services/master/master-data.service.js';
 import { adminAuthMiddleware } from '../../middlewares/auth.middleware.js';
 import { createSuccessResponse, createErrorResponse } from '../../utils/response-envelope.js';
@@ -13,6 +14,7 @@ const providerRepo = new ProviderRepository(prisma);
 const endpointRepo = new ProviderEndpointRepository(prisma);
 const capabilityRepo = new CapabilityRepository(prisma);
 const mappingRepo = new MappingRepository(prisma);
+const userRepo = new UserRepository();
 
 const masterService = new MasterDataService(
   prisma,
@@ -20,8 +22,10 @@ const masterService = new MasterDataService(
   providerRepo,
   endpointRepo,
   capabilityRepo,
-  mappingRepo
+  mappingRepo,
+  userRepo
 );
+
 
 export const masterRoute = new OpenAPIHono();
 
@@ -910,8 +914,82 @@ masterRoute.openapi(getValidationLogsRoute, async (c) => {
 });
 
 // ============================================
+// 11. ADMIN USER MANAGEMENT ENDPOINTS
+// ============================================
+
+
+const GetUsersQuerySchema = z.object({
+  page: z.string().optional().default('1'),
+  limit: z.string().optional().default('20'),
+  search: z.string().optional(),
+  sortBy: z.enum(['createdAt', 'name', 'email', 'balance']).optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+});
+
+const getUsersRoute = createRoute({
+  method: 'get',
+  path: '/users',
+  summary: 'List Paginated Users',
+  tags: ['Admin Management'],
+  security: [{ BearerAuth: [] }],
+  request: { query: GetUsersQuerySchema },
+  responses: { 200: { description: 'Users list fetched successfully' } },
+});
+
+masterRoute.openapi(getUsersRoute, async (c) => {
+  try {
+    const query = c.req.valid('query');
+    const page = Math.max(1, parseInt(query.page || '1', 10));
+    const rawLimit = parseInt(query.limit || '20', 10);
+    const limit = Math.min(100, Math.max(1, isNaN(rawLimit) ? 20 : rawLimit));
+
+    const ALLOWED_SORT_FIELDS = ['createdAt', 'name', 'email', 'balance'] as const;
+    const sortBy = ALLOWED_SORT_FIELDS.includes(query.sortBy as any) ? query.sortBy : 'createdAt';
+    const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
+
+    const result = await masterService.getAllUsers(query.search, page, limit, sortBy as any, sortOrder);
+
+    return c.json(
+      createSuccessResponse(result.users, 'Users fetched successfully', result.meta),
+      200
+    );
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to fetch users', 'FETCH_FAILED', err.message), 400);
+  }
+});
+
+const getUserByIdRoute = createRoute({
+  method: 'get',
+  path: '/users/{id}',
+  summary: 'Get Single User Profile Detail',
+  tags: ['Admin Management'],
+  security: [{ BearerAuth: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    200: { description: 'User detail profile fetched successfully' },
+    404: { description: 'User account not found' },
+  },
+});
+
+masterRoute.openapi(getUserByIdRoute, async (c) => {
+  try {
+    const { id } = c.req.valid('param');
+    const user = await masterService.getUserById(id);
+
+    if (!user) {
+      return c.json(createErrorResponse('User account not found', 'NOT_FOUND'), 404);
+    }
+
+    return c.json(createSuccessResponse(user, 'User profile fetched successfully'), 200);
+  } catch (err: any) {
+    return c.json(createErrorResponse('Failed to fetch user detail', 'FETCH_FAILED', err.message), 400);
+  }
+});
+
+// ============================================
 // 12. ADMIN MANUAL USER TOP-UP ENDPOINT
 // ============================================
+
 const adminUserTopupRoute = createRoute({
   method: 'post',
   path: '/users/{id}/topup',

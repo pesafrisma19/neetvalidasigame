@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { MasterDataPage } from './pages/MasterDataPage';
 import { ApiKeyPage } from './pages/ApiKeyPage';
 import { LogViewerPage } from './pages/LogViewerPage';
+import { UserManagementPage } from './pages/UserManagementPage';
 import { UserRegisterPage } from './pages/UserRegisterPage';
 import { UserLoginPage } from './pages/UserLoginPage';
 import { UserDashboardPage } from './pages/UserDashboardPage';
@@ -24,8 +25,10 @@ export function App() {
             <Route path="login" element={<LoginPage />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="master-data" element={<MasterDataPage />} />
+            <Route path="users" element={<UserManagementPage />} />
             <Route path="api-keys" element={<ApiKeyPage />} />
             <Route path="logs" element={<LogViewerPage />} />
+
 
             {/* Partner Self-Service User Routes */}
             <Route path="register" element={<UserRegisterPage />} />
