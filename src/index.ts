@@ -7,6 +7,7 @@ import { logger } from './utils/logger.js';
 import { errorHandlerMiddleware } from './middlewares/error-handler.middleware.js';
 import { healthRoute } from './features/health/health.route.js';
 import { authRoute } from './features/auth/auth.route.js';
+import { userAuthRoute } from './features/user-auth/user-auth.route.js';
 import { masterRoute } from './features/master/master-data.route.js';
 import { validationRoute } from './features/validation/validation.route.js';
 import { startCircuitBreakerJob } from './jobs/circuit-breaker-recovery.job.js';
@@ -37,6 +38,7 @@ app.onError(errorHandlerMiddleware);
 // Mount Routes
 app.route('/api/v1/public', healthRoute);
 app.route('/api/v1/public', validationRoute);
+app.route('/api/v1/user', userAuthRoute);
 app.route('/api/v1/admin', authRoute);
 app.route('/api/v1/admin', masterRoute);
 
