@@ -214,7 +214,8 @@ validationRoute.openapi(postValidateAccountRoute, async (c) => {
           zoneId: result.zoneId,
           capabilities: result.capabilities,
         },
-        'Validation successful'
+        'Validation successful',
+        result.meta
       ),
       200
     );
