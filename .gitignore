@@ -27,3 +27,9 @@ yarn-error.log*
 
 # Prisma
 /prisma/migrations/*_lock.toml
+
+# Scratch & Test Scripts
+scratch/
+
+# Agent Workspace Rules (internal, not for public repo)
+.agents/
