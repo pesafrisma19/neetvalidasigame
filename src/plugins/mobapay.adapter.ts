@@ -77,6 +77,10 @@ export class MobapayAdapter implements BaseProviderAdapter {
 
       const nickname = rawJson.data?.user_info?.user_name || undefined;
 
+      if (!nickname) {
+        throw new Error('Mobapay Provider: User ID atau Server ID tidak ditemukan');
+      }
+
       // Extract all goods items from shop_info
       const allGoods = [
         ...(rawJson.data?.goods || []),
